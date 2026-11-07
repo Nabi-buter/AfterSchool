@@ -5,11 +5,11 @@ import {
   type RunConfig, type StageLayout, type Telegraph, type WeaponInst, type Zone,
 } from './world';
 import { BASE_STATS, PASSIVES, PASSIVE_MAP } from '../data/passives';
-import { BASE_WEAPONS, MAX_PASSIVE_SLOTS, MAX_WEAPON_SLOTS, WEAPON_MAP, describeDelta, weaponMaxLevel, weaponStatsAt } from '../data/weapons';
+import { BASE_WEAPONS, MAX_PASSIVE_SLOTS, MAX_WEAPON_SLOTS, UNIONS, WEAPON_MAP, describeDelta, weaponMaxLevel, weaponStatsAt } from '../data/weapons';
 import { ENEMY_MAP, BOSS_MAP } from '../data/enemies';
 import { AFFINITY_BONUS, CLUB_MAP } from '../data/characters';
 import { SCHEDULE_EVENTS, SYNERGIES, EVENT_MAP } from '../data/misc';
-import type { EnemyDef, EventKind, StageDef, Stats } from '../types';
+import type { EnemyDef, EventKind, StageDef, Stats, WeaponDef } from '../types';
 import { buildLayout, pointInObstacles, resolveCircle } from '../systems/layout';
 import { characterSprites, enemySprite } from '../render/sprites';
 import { updateWeapons, updateProjectiles, updateFriendlyZones } from '../systems/weapons';
@@ -20,7 +20,7 @@ import { audio, type SfxName } from '../audio/audio';
 import type { RunResult } from '../../meta/store';
 
 export interface UpgradeOption {
-  kind: 'weapon' | 'passive' | 'evolve' | 'heal' | 'coin';
+  kind: 'weapon' | 'passive' | 'evolve' | 'union' | 'heal' | 'coin';
   id: string;
   name: string;
   desc: string;
@@ -74,9 +74,9 @@ export class Game {
 
   player!: Player;
   enemies = new Pool<Enemy>(520, makeEnemy);
-  projectiles = new Pool<Projectile>(800, makeProjectile);
+  projectiles = new Pool<Projectile>(900, makeProjectile);
   bullets = new Pool<EnemyBullet>(600, makeBullet);
-  zones = new Pool<Zone>(220, makeZone);
+  zones = new Pool<Zone>(480, makeZone);
   pickups = new Pool<Pickup>(1000, makePickup);
   particles = new Pool<Particle>(900, makeParticle);
   texts = new Pool<DamageText>(180, makeText);
@@ -124,6 +124,12 @@ export class Game {
   private destroyed = false;
   private resizeObs: ResizeObserver;
   mopX = 0;
+  /** slot → weapon instance that fires from it, and the inventory weapon credited. */
+  slotInst: (WeaponInst | null)[] = [];
+  slotOwner: (WeaponInst | null)[] = [];
+  freezeT = 0;
+  energyT = 0;
+  propTimer = 5;
   private timers: { t: number; fn: () => void }[] = [];
 
   /** Schedule a callback in game time (pauses with the game). Same arg order as setTimeout. */
@@ -260,7 +266,10 @@ export class Game {
     p.stats = s;
     if (s.maxHp > prevMax && this.time > 0) p.hp += s.maxHp - prevMax;
     p.hp = Math.min(p.hp, s.maxHp);
-    for (const w of this.weapons) w.stats = weaponStatsAt(w.def, w.level);
+    for (const w of this.weapons) {
+      w.stats = weaponStatsAt(w.def, w.level);
+      if (w.subs) for (const sb of w.subs) sb.stats = weaponStatsAt(sb.def, 1);
+    }
   }
 
   // ───────────────────────── main loop ─────────────────────────
@@ -330,7 +339,9 @@ export class Game {
   private updatePlayer(dt: number) {
     const p = this.player;
     const ax = this.input.axis();
-    const sp = PLAYER_SPEED * p.stats.speed;
+    const sp = PLAYER_SPEED * p.stats.speed * (this.energyT > 0 ? 1.3 : 1);
+    if (this.energyT > 0) this.energyT -= dt;
+    if (this.freezeT > 0) this.freezeT -= dt;
     p.moving = ax.x !== 0 || ax.y !== 0;
     if (p.moving) {
       p.x += ax.x * sp * dt;
@@ -356,7 +367,7 @@ export class Game {
       const dx = e.x - p.x;
       const dy = e.y - p.y;
       if (dx * dx + dy * dy < rr * rr && e.spawnT <= 0) {
-        if (e.def.behavior === 'mimic' && e.state === 0) return;
+        if ((e.def.behavior === 'mimic' && e.state === 0) || e.def.behavior === 'prop' || this.freezeT > 0) return;
         this.hurtPlayer(e.dmg);
         return true;
       }
@@ -372,10 +383,10 @@ export class Game {
 
   hurtPlayer(raw: number) {
     const p = this.player;
-    if (p.invuln > 0 || this.state !== 'play') return;
+    if (p.invuln > 0 || this.state !== 'play' || this.energyT > 0) return;
     const dmg = Math.max(1, raw - p.stats.armor);
     p.hp -= dmg;
-    p.invuln = 0.6;
+    p.invuln = 0.6 + p.stats.iframe;
     p.flash = 0.2;
     this.shake(5);
     audio.play('hurt');
@@ -436,6 +447,14 @@ export class Game {
         alive += this.spawnGroup(ENEMY_MAP[w.enemy], n);
       }
     }
+    // breakable props carrying field items (like light sources in the genre)
+    this.propTimer -= dt;
+    if (this.propTimer <= 0) {
+      this.propTimer = 7 + Math.random() * 4;
+      let props = 0;
+      for (const e of this.enemies.items) if (e.alive && e.def.behavior === 'prop') props++;
+      if (props < 5) this.spawnProp();
+    }
     // lab hazard spills
     if (st.hazards) {
       this.hazardTimer -= dt;
@@ -450,6 +469,26 @@ export class Game {
           this.telegraph('circle', x, y, 0, 0, 56, 1.2, () => this.hostileZone('acid', x, y, 56, 6, 9));
         }
       }
+    }
+  }
+
+  spawnProp() {
+    const p = this.player;
+    for (let tries = 0; tries < 10; tries++) {
+      const a = Math.random() * Math.PI * 2;
+      const d = 260 + Math.random() * 320;
+      const x = p.x + Math.cos(a) * d;
+      const y = p.y + Math.sin(a) * d;
+      if (x < 60 || y < 90 || x > this.stage.width - 60 || y > this.stage.height - 60) continue;
+      if (pointInObstacles(x, y, 24, this.layout.obstacles)) continue;
+      const def = Math.random() < 0.5 ? PROP_TRASH : PROP_BOX;
+      const e = this.spawnEnemy(def, x, y);
+      if (e) {
+        e.maxHp = e.hp = 12;
+        e.kres = 1;
+        e.spawnT = 0;
+      }
+      return;
     }
   }
 
@@ -532,7 +571,7 @@ export class Game {
     e.ax = 0;
     e.ay = 0;
     e.hitT.fill(-99);
-    if (!this.enemyKills[def.id]) this.enemyKills[def.id] = 0;
+    if (def.behavior !== 'prop' && !this.enemyKills[def.id]) this.enemyKills[def.id] = 0;
     return e;
   }
 
@@ -627,6 +666,8 @@ export class Game {
         if (Math.abs(e.vx) < 2) e.vx = 0;
         if (Math.abs(e.vy) < 2) e.vy = 0;
       }
+      if (e.def.behavior === 'prop') continue;
+      if (this.freezeT > 0) continue;
       if (e.stun > 0) {
         e.stun -= dt;
       } else if (e.boss) updateBoss(this, e, dt);
@@ -674,8 +715,16 @@ export class Game {
   damageEnemy(e: Enemy, base: number, slot: number, knock: number, kx: number, ky: number, critBonus = 0): number {
     if (!e.alive || e.spawnT > 0.15) return 0;
     const s = this.player.stats;
-    let dmg = base * s.might;
-    const w = this.weapons[slot];
+    if (e.def.behavior === 'prop') {
+      e.hp -= base;
+      e.flash = 0.1;
+      if (e.hp <= 0) this.killEnemy(e);
+      return 0;
+    }
+    let dmg = base * s.might * (this.slotInst[slot]?.mul ?? 1);
+    knock *= s.knock;
+    const w = this.slotOwner[slot];
+    const actual = this.slotInst[slot];
     if (w) {
       const club = CLUB_MAP[this.cfg.club]?.id;
       if (club === 'science' && w.def.tags.includes('projectile')) dmg *= 1.1;
@@ -699,7 +748,10 @@ export class Game {
     if (w) w.dealt += final;
     if (this.cfg.settings.damageNumbers) this.text(e.x + (Math.random() - 0.5) * 10, e.y - e.r, final, crit);
     audio.play('hit', { pitch: crit ? 1.4 : 1 });
-    if (e.hp <= 0) this.killEnemy(e);
+    if (e.hp <= 0) {
+      this.killEnemy(e);
+      if (actual?.def.id === 'slipper_evo' && !e.boss && Math.random() < 0.08) this.dropPickup('coin', e.x, e.y, 1);
+    }
     return final;
   }
 
@@ -709,6 +761,12 @@ export class Game {
     const def = e.def;
     if (e.boss) {
       this.onBossKilled(e);
+      return;
+    }
+    if (def.behavior === 'prop') {
+      this.burst(e.x, e.y, def.id === 'prop_box' ? '#8B5E3C' : '#9CA3AF', 10, 160);
+      audio.play('kill', { pitch: 0.6 });
+      this.dropPickup(this.rollFieldItem(), e.x, e.y, 0);
       return;
     }
     this.kills++;
@@ -730,11 +788,15 @@ export class Game {
     const kind = v >= 10 ? 'gem3' : v >= 3 ? 'gem2' : 'gem1';
     this.dropPickup(kind, e.x, e.y, v);
     const luck = this.player.stats.luck;
-    if (Math.random() < 0.035 * luck * (def.behavior === 'mimic' ? 6 : 1)) this.dropPickup('coin', e.x + 6, e.y, 1);
-    let food = 0.006 * this.player.stats.healMult;
+    const drop = this.player.stats.drop;
+    if (Math.random() < 0.035 * luck * drop * (def.behavior === 'mimic' ? 6 : 1)) this.dropPickup('coin', e.x + 6, e.y, 1);
+    let food = 0.006 * this.player.stats.healMult * drop;
     if (this.event?.id === 'lunch') food *= 4;
     if (Math.random() < food) this.dropPickup('food', e.x, e.y - 6, 0);
-    if (Math.random() < 0.0012 * luck) this.dropPickup('magnet', e.x, e.y, 0);
+    const r = Math.random();
+    if (r < 0.0012 * luck * drop) this.dropPickup('magnet', e.x, e.y, 0);
+    else if (r < 0.0016 * luck * drop) this.dropPickup('clock', e.x, e.y, 0);
+    else if (r < 0.0019 * luck * drop) this.dropPickup('bell', e.x, e.y, 0);
     // split
     if (def.splitInto && def.splitCount) {
       const child = ENEMY_MAP[def.splitInto];
@@ -747,6 +809,28 @@ export class Game {
         }
       }
     }
+  }
+
+  /** Random field item from breakable props. */
+  rollFieldItem(): Pickup['kind'] {
+    const luck = this.player.stats.luck * this.player.stats.drop;
+    const table: [Pickup['kind'], number][] = [
+      ['food', 30],
+      ['coin', 20],
+      ['coinbag', 6 * luck],
+      ['magnet', 9 * luck],
+      ['clock', 6 * luck],
+      ['bell', 5 * luck],
+      ['energy', 6 * luck],
+      ['feast', 3 * luck],
+    ];
+    const total = table.reduce((a, t) => a + t[1], 0);
+    let x = Math.random() * total;
+    for (const [k, w] of table) {
+      x -= w;
+      if (x <= 0) return k;
+    }
+    return 'food';
   }
 
   private onBossKilled(e: Enemy) {
@@ -1047,6 +1131,8 @@ export class Game {
         if (this.event?.id === 'exam') mult *= 1.5;
         this.gainXp(pk.value * mult);
         audio.play('gem', { pitch: 1 + Math.min(0.6, p.xp / p.xpNext) * 0.5 });
+        const dil = this.passives.find((x) => x.id === 'diligence');
+        if (dil && p.hp < p.stats.maxHp && Math.random() < 0.06 * dil.level) p.hp = Math.min(p.stats.maxHp, p.hp + 1 + pk.value * 0.3);
         break;
       }
       case 'coin': {
@@ -1069,6 +1155,42 @@ export class Game {
         break;
       case 'chest':
         this.openChest();
+        break;
+      case 'feast':
+        p.hp = p.stats.maxHp;
+        this.text(p.x, p.y - 20, p.stats.maxHp, false, '#68B6AA', '+');
+        audio.play('heal');
+        this.burst(p.x, p.y, '#68B6AA', 14, 160);
+        break;
+      case 'coinbag': {
+        const v = 25 * p.stats.coinGain;
+        this.coins += v;
+        this.text(p.x, p.y - 20, v, false, '#E2B94A', '+');
+        audio.play('coin');
+        break;
+      }
+      case 'bell': {
+        // emergency bell: wipes every regular enemy on screen
+        const vr = this.viewRect();
+        for (const e of this.enemies.items) {
+          if (!e.alive || e.boss || e.elite || e.def.behavior === 'prop') continue;
+          if (e.x > vr.x && e.x < vr.x + vr.w && e.y > vr.y && e.y < vr.y + vr.h) this.killEnemy(e);
+        }
+        for (const b of this.bullets.items) b.alive = false;
+        this.shake(10);
+        audio.play('bell');
+        this.onEvent({ type: 'banner', title: '비상벨', sub: '화면의 적이 모두 사라졌다', tone: 'info', label: 'FIELD ITEM' });
+        break;
+      }
+      case 'clock':
+        this.freezeT = 6;
+        audio.play('warn');
+        this.onEvent({ type: 'banner', title: '멈춘 시계', sub: '6초 동안 모든 적이 멈춘다', tone: 'info', label: 'FIELD ITEM' });
+        break;
+      case 'energy':
+        this.energyT = 8;
+        audio.play('levelup');
+        this.onEvent({ type: 'banner', title: '에너지 드링크', sub: '8초 동안 무적 · 이동 속도 +30%', tone: 'info', label: 'FIELD ITEM' });
         break;
     }
   }
@@ -1106,6 +1228,9 @@ export class Game {
         cands.push({ opt: { kind: 'evolve', id: w.def.id, name: ed.name, desc: ed.desc, level: w.level, next: 1, isNew: false, tag: '진화' }, w: 30 });
       }
     }
+    for (const u of this.availableUnions()) {
+      cands.push({ opt: { kind: 'union', id: u.id, name: u.name, desc: u.desc, level: 0, next: 1, isNew: true, tag: '조합' }, w: 28 });
+    }
     for (const w of this.weapons) {
       const max = weaponMaxLevel(w.def);
       if (w.level < max) {
@@ -1114,7 +1239,7 @@ export class Game {
     }
     if (this.weapons.length < MAX_WEAPON_SLOTS) {
       for (const d of BASE_WEAPONS) {
-        if (this.weapons.some((w) => w.def.id === d.id || w.def.id === d.evolvesInto)) continue;
+        if (this.weapons.some((w) => w.def.id === d.id || w.def.id === d.evolvesInto || w.def.union?.includes(d.id))) continue;
         let wt = 1.4;
         if (club?.id === 'science' && d.tags.includes('projectile')) wt *= 1.4;
         if (club?.id === 'broadcast' && d.tags.includes('area')) wt *= 1.4;
@@ -1156,6 +1281,7 @@ export class Game {
       const c = cands.splice(idx, 1)[0];
       // never offer the same item twice (e.g. evolve + upgrade of same weapon)
       if (picked.some((x) => x.id === c.opt.id && x.kind !== 'evolve' && c.opt.kind !== 'evolve')) continue;
+      if (c.opt.kind === 'union' && picked.some((x) => x.kind === 'union')) continue;
       picked.push(c.opt);
     }
     if (picked.length === 0) {
@@ -1190,6 +1316,9 @@ export class Game {
         if (w) this.evolve(w);
         break;
       }
+      case 'union':
+        this.makeUnion(WEAPON_MAP[opt.id]);
+        break;
       case 'heal':
         this.player.hp = Math.min(this.player.stats.maxHp, this.player.hp + this.player.stats.maxHp * 0.4);
         audio.play('heal');
@@ -1232,17 +1361,83 @@ export class Game {
     }
   }
 
+  makeInst(def: WeaponDef): WeaponInst {
+    return {
+      def, level: 1, slot: 0, timer: 0.4, stats: weaponStatsAt(def, 1), active: 0, angle: Math.random() * Math.PI * 2, burst: 0, burstT: 0,
+      dealt: 0, subs: null, owner: null, mul: 1, swing: 0, swingIdx: 0, swingDir: 1, lastX: this.player?.x ?? 0, lastY: this.player?.y ?? 0,
+    };
+  }
+
   addWeapon(id: string) {
     const def = WEAPON_MAP[id];
     if (!def || this.weapons.length >= MAX_WEAPON_SLOTS) return;
-    this.weapons.push({ def, level: 1, slot: this.weapons.length, timer: 0.4, stats: weaponStatsAt(def, 1), active: 0, angle: 0, burst: 0, burstT: 0, dealt: 0 });
+    this.weapons.push(this.makeInst(def));
     this.maxWeapons = Math.max(this.maxWeapons, this.weapons.length);
+    this.reslot();
+  }
+
+  /** Assign hit slots: inventory weapons 0..5, union sub weapons from 6. */
+  reslot() {
+    this.slotInst = [];
+    this.slotOwner = [];
+    let extra = MAX_WEAPON_SLOTS;
+    this.weapons.forEach((w, i) => {
+      w.slot = i;
+      w.owner = w;
+      this.slotInst[i] = w;
+      this.slotOwner[i] = w;
+      if (w.subs) {
+        for (const sb of w.subs) {
+          sb.slot = extra;
+          sb.owner = w;
+          this.slotInst[extra] = sb;
+          this.slotOwner[extra] = w;
+          extra++;
+        }
+      }
+    });
+  }
+
+  /** Every union whose two parent weapons are owned at max level (not evolved). */
+  availableUnions(): WeaponDef[] {
+    return UNIONS.filter((u) => {
+      const [a, b] = u.union!;
+      const wa = this.weapons.find((w) => w.def.id === a);
+      const wb = this.weapons.find((w) => w.def.id === b);
+      return !!wa && !!wb && wa.level >= weaponMaxLevel(wa.def) && wb.level >= weaponMaxLevel(wb.def);
+    });
+  }
+
+  makeUnion(u: WeaponDef) {
+    const [a, b] = u.union!;
+    const ia = this.weapons.findIndex((w) => w.def.id === a);
+    const ib = this.weapons.findIndex((w) => w.def.id === b);
+    if (ia < 0 || ib < 0) return;
+    const inst = this.makeInst(u);
+    inst.dealt = this.weapons[ia].dealt + this.weapons[ib].dealt;
+    inst.subs = u.subs!.map((id) => {
+      const sb = this.makeInst(WEAPON_MAP[id]);
+      sb.mul = 1.15;
+      sb.timer = 0.3;
+      return sb;
+    });
+    this.weapons[ia] = inst;
+    this.weapons.splice(ib, 1);
+    this.reslot();
+    this.evolutions.push(u.id);
+    audio.play('evolve');
+    this.shake(10);
+    for (let i = 0; i < 3; i++) this.burst(this.player.x, this.player.y, i === 0 ? '#68B6AA' : '#F1EBDD', 24, 280 + i * 80);
+    this.onEvent({ type: 'banner', title: u.name, sub: `${WEAPON_MAP[a].name} + ${WEAPON_MAP[b].name} · 무기 칸 1개가 비었다`, tone: 'synergy', label: 'UNION' });
   }
 
   addPassive(id: string) {
     const ex = this.passives.find((p) => p.id === id);
     if (ex) ex.level = Math.min(PASSIVE_MAP[id].maxLevel, ex.level + 1);
-    else if (this.passives.length < MAX_PASSIVE_SLOTS) this.passives.push({ id, level: 1 });
+    else if (this.passives.length < MAX_PASSIVE_SLOTS) {
+      this.passives.push({ id, level: 1 });
+      if (PASSIVE_MAP[id].special === 'friendship') this.player.revives++;
+    }
   }
 
   canEvolve(w: WeaponInst): string | null {
@@ -1281,9 +1476,14 @@ export class Game {
       this.evolve(evoW);
       items.push({ id: into.id, name: into.name, text: '무기 진화', evo: true });
     }
-    const rolls = evoW ? 1 : 1 + (Math.random() < 0.35 * this.player.stats.luck ? 2 : 0);
+    const uni = evoW ? undefined : this.availableUnions()[0];
+    if (uni) {
+      this.makeUnion(uni);
+      items.push({ id: uni.id, name: uni.name, text: '무기 조합', evo: true });
+    }
+    const rolls = evoW || uni ? 1 : 1 + (Math.random() < 0.35 * this.player.stats.luck ? 2 : 0);
     for (let i = 0; i < rolls; i++) {
-      const ups = this.weapons.filter((w) => !w.def.isEvolution && w.level < weaponMaxLevel(w.def));
+      const ups = this.weapons.filter((w) => !w.def.isEvolution && !w.def.union && w.level < weaponMaxLevel(w.def));
       const pups = this.passives.filter((p) => p.level < PASSIVE_MAP[p.id].maxLevel);
       if (ups.length && (Math.random() < 0.65 || !pups.length)) {
         const w = ups[Math.floor(Math.random() * ups.length)];
@@ -1312,7 +1512,7 @@ export class Game {
   // ───────────────────────── synergies ─────────────────────────
   hasItem(id: string): boolean {
     if (this.passives.some((p) => p.id === id)) return true;
-    return this.weapons.some((w) => w.def.id === id || w.def.id === id + '_evo');
+    return this.weapons.some((w) => w.def.id === id || w.def.id === id + '_evo' || !!w.def.union?.includes(id));
   }
 
   checkSynergies() {
@@ -1441,7 +1641,7 @@ export class Game {
     h.clock = this.clockString();
     h.boss = this.boss && this.boss.alive ? { name: this.boss.boss!.name, hp: this.boss.hp, max: this.boss.maxHp, phase: this.boss.phase } : null;
     if (h.weapons.length !== this.weapons.length || this.weapons.some((w, i) => h.weapons[i].level !== w.level || h.weapons[i].id !== w.def.id)) {
-      h.weapons = this.weapons.map((w) => ({ id: w.def.id, level: w.level, evo: !!w.def.isEvolution, max: weaponMaxLevel(w.def) }));
+      h.weapons = this.weapons.map((w) => ({ id: w.def.id, level: w.level, evo: !!w.def.isEvolution || !!w.def.union, max: weaponMaxLevel(w.def) }));
     }
     if (h.passives.length !== this.passives.length || this.passives.some((x, i) => h.passives[i].level !== x.level)) {
       h.passives = this.passives.map((x) => ({ id: x.id, level: x.level, max: PASSIVE_MAP[x.id].maxLevel }));
@@ -1476,3 +1676,7 @@ const ENEMY_COLOR: Record<string, string> = {
 export function enemyColor(sprite: string) {
   return ENEMY_COLOR[sprite] ?? '#F1EBDD';
 }
+
+const PROP_BASE = { behavior: 'prop' as const, hp: 12, speed: 0, dmg: 0, radius: 16, xp: 0, knockResist: 1 };
+export const PROP_TRASH: EnemyDef = { ...PROP_BASE, id: 'prop_trash', name: '쓰레기통', desc: '부수면 무언가 떨어진다.', sprite: 'trash' };
+export const PROP_BOX: EnemyDef = { ...PROP_BASE, id: 'prop_box', name: '교재 상자', desc: '부수면 무언가 떨어진다.', sprite: 'box' };

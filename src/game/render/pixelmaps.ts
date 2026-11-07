@@ -371,6 +371,48 @@ export const ENEMY_MAPS: Record<string, PixelMap> = {
       '.....ooo.....',
     ],
   },
+  trash: {
+    rows: [
+      '...oooooo...',
+      '.occcccccco.',
+      'oCCCCCCCCCCo',
+      '.oxxxxxxxxo.',
+      '.oxcxxcxxco.',
+      '.oxcxxcxxco.',
+      '.oxcxxcxxco.',
+      '.oxcxxcxxco.',
+      '.oxcxxcxxco.',
+      '.oxxxxxxxxo.',
+      '..oooooooo..',
+    ],
+  },
+  box: {
+    rows: [
+      'oooooooooooo',
+      'ouuuuPPuuuuo',
+      'oUUUUPPUUUUo',
+      'ouuuuuuuuuuo',
+      'ouuuuuuuuuuo',
+      'ouuwwwwuuuuo',
+      'ouuuuuuuuuuo',
+      'oooooooooooo',
+    ],
+  },
+  fclock: {
+    rows: [
+      '.oo.....oo.',
+      'oxxoooooxxo',
+      '.ottttttto.',
+      'otwwwwwwwto',
+      'otwwwkwwwto',
+      'otwwwkwwwto',
+      'otwwwkkkwto',
+      'otwwwwwwwto',
+      '.otwwwwwto.',
+      '..ottttto..',
+      '.oo.....oo.',
+    ],
+  },
   nightwraith: {
     rows: [
       '...oooooo...',
@@ -548,6 +590,11 @@ export const PICKUP_MAPS: Record<string, PixelMap> = {
     ],
   },
   magnet: { rows: ['.oo.oo.', 'orooroo', 'oro.oro', 'oro.oro', 'orroroo', '.orrro.', '..ooo..'] },
+  feast: { rows: ['oooooooooo', 'oxxxxxxxxo', 'oxwwxrrxxo', 'oxwwxrrxyo', 'oxxxxxxxxo', 'oxllxnnnxo', 'oxxxxxxxxo', 'oooooooooo'] },
+  coinbag: { rows: ['oooooooooo', 'owwwwwwwwo', 'owowwwwowo', 'owwowwowwo', 'owwwooywwo', 'owwwwyywwo', 'owwwwwwwwo', 'oooooooooo'] },
+  bell: { rows: ['..oooooo..', '.orrrrrro.', 'orrwwrrrro', 'orrwrrrrro', 'orrrrkrrro', 'orrrrrrrro', '.orrrrrro.', '..oooooo..'] },
+  clock: { rows: ['..oooo..', '.obbbbo.', 'obwwwwbo', 'obwkwwbo', 'obwkkwbo', 'obwwwwbo', '.obbbbo.', '..oooo..'] },
+  energy: { rows: ['..oooo..', '.oxxxxo.', '.otttto.', '.otyyto.', '.otyyto.', '.otttto.', '.otttto.', '.oxxxxo.', '..oooo..'] },
 };
 
 // ───────────────────────── Icons (10x10) ─────────────────────────
@@ -580,4 +627,27 @@ export const ICON_MAPS: Record<string, PixelMap> = {
   presentation: { rows: ['...oooo...', '..okkkko..', '..okxkko..', '..okkkko..', '..okkkko..', '...oooo...', '....og....', '....og....', '..oooooo..', '..........'] },
   lunch: { rows: ['..........', '..........', '..owwwwo..', '.owwwwwwo.', 'oooooooooo', 'orrrrrrrro', '.orRRRRro.', '..orrrro..', '...oooo...', '..........'] },
   allowance: { rows: ['..........', '...oooo...', '..oyyyyo..', '.oyyYYyyo.', '.oyYyyyyo.', '.oyyYYyyo.', '.oyyyyYyo.', '.oyYYYYyo.', '..oyyyyo..', '...oooo...'] },
+  // new weapons
+  ruler: { rows: ['oo........', 'oyyo......', 'oykyo.....', '.oyyyo....', '..okyyo...', '...oyyyo..', '....okyyo.', '.....oyyyo', '......oyyo', '.......oo.'] },
+  eraser: { rows: ['..........', '..........', '.oooooooo.', '.ommmbbbbo', '.ommmbwbbo', '.ommmbbbbo', '.oMMMBBBBo', '.oooooooo.', '..........', '..........'] },
+  slipper: { rows: ['...oooo...', '..owwwwo..', '..obbbbo..', '..owbwbo..', '..obbbbo..', '..owwwwo..', '..owwwwo..', '..owwwwo..', '..owwwwo..', '...oooo...'] },
+  recorder: { rows: ['........oo', '.......owo', '......owwo', '.....owko.', '....owwo..', '...owko...', '..owwo....', '.owko.....', 'owwo......', 'oyo.......'] },
+  highlighter: { rows: ['........oo', '.......olo', '......ollo', '.....ollo.', '....ollo..', '...okko...', '..okko....', '.olko.....', '.olo......', 'oo........'] },
+  static: { rows: ['oooooooooo', 'obbbbbbbbo', 'obbbbyybbo', 'obbbyybbbo', 'obbyyyybbo', 'obbbbyybbo', 'obbbyybbbo', 'obbbybbbbo', 'obbbbbbbbo', 'oooooooooo'] },
+  tacks: { rows: ['..........', '.ooo......', 'orrro.....', 'orwro.....', 'orrro.ooo.', '.oxo.obbbo', '..x..obwbo', '.....obbbo', '......oxo.', '.......x..'] },
+  tape: { rows: ['..........', '.oooooooo.', '.otttttto.', '.otwwwwto.', '.otwkkwto.', '.otwwwwto.', '.ottttttoo', '.oooooooww', '........ww', '..........'] },
+  // new passives
+  posture: { rows: ['....oo....', '...owwo...', '...owwo...', '....oo....', '..oooooo..', '..otttto..', '...otto...', '...otto...', '...o..o...', '..oo..oo..'] },
+  reflex: { rows: ['...oooo...', '..oyyyyo..', '.oyyooyyo.', '.oyyooyyo.', '.oyyooyyo.', '.oyyyyyyo.', '.oyyooyyo.', '..oyyyyo..', '...oooo...', '..........'] },
+  curiosity: { rows: ['..oooo....', '.obbbbo...', 'obwbbbbo..', 'obbbbbbo..', 'obbbbbbo..', '.obbbbo...', '..ooooko..', '......oko.', '.......oko', '........o.'] },
+  friendship: { rows: ['.oo....oo.', 'ommo..ommo', 'ommmoommmo', 'omwmmmmmmo', 'ommmmmmmmo', '.ommmmmmo.', '..ommmmo..', '...ommo...', '....oo....', '..........'] },
+  diligence: { rows: ['..........', '.oooooooo.', '.orrrrrro.', '.owwwwwwo.', '.owtwwtwo.', '.owwwwwwo.', '.owtwtwwo.', '.owwwwwwo.', '.oooooooo.', '..........'] },
+  // field items (codex)
+  feast: { rows: ['..........', 'oooooooooo', 'oxxxxxxxxo', 'oxwwxrrxxo', 'oxwwxrrxyo', 'oxxxxxxxxo', 'oxllxnnnxo', 'oxxxxxxxxo', 'oooooooooo', '..........'] },
+  coinbag: { rows: ['..........', 'oooooooooo', 'owwwwwwwwo', 'owowwwwowo', 'owwowwowwo', 'owwwooywwo', 'owwwwyywwo', 'owwwwwwwwo', 'oooooooooo', '..........'] },
+  bell: { rows: ['..........', '..oooooo..', '.orrrrrro.', 'orrwwrrrro', 'orrwrrrrro', 'orrrrkrrro', 'orrrrrrrro', '.orrrrrro.', '..oooooo..', '..........'] },
+  clock: { rows: ['..........', '...oooo...', '..obbbbo..', '.obwwwwbo.', '.obwkwwbo.', '.obwkkwbo.', '.obwwwwbo.', '..obbbbo..', '...oooo...', '..........'] },
+  energy: { rows: ['...oooo...', '..oxxxxo..', '..otttto..', '..otyyto..', '..otyyto..', '..otttto..', '..otttto..', '..otttto..', '..oxxxxo..', '...oooo...'] },
+  food: { rows: ['..........', '....oo....', '...owwo...', '..owwwwo..', '..owwwwo..', '.owwwwwwo.', '.okkkkkko.', '.okkkkkko.', '.oooooooo.', '..........'] },
+  gem: { rows: ['..........', '....o.....', '...oto....', '..otwto...', '..ottTo...', '...oTo....', '....o.....', '..........', '..........', '..........'] },
 };

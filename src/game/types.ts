@@ -17,7 +17,10 @@ export type StatKey =
   | 'critDmg'
   | 'xpGain'
   | 'coinGain'
-  | 'healMult';
+  | 'healMult'
+  | 'knock'
+  | 'iframe'
+  | 'drop';
 
 export type Stats = Record<StatKey, number>;
 
@@ -33,7 +36,16 @@ export type WeaponKind =
   | 'alarm'
   | 'speaker'
   | 'cart'
-  | 'edict';
+  | 'edict'
+  | 'ruler'
+  | 'eraser'
+  | 'slipper'
+  | 'recorder'
+  | 'highlighter'
+  | 'static'
+  | 'tacks'
+  | 'tape'
+  | 'union';
 
 export interface WeaponLevel {
   dmg: number;
@@ -58,6 +70,11 @@ export interface WeaponDef {
   evolvesWith?: string; // passive id
   evolvesInto?: string; // weapon id
   isEvolution?: boolean;
+  /** Union weapon: built from two max-level base weapons, runs both sub weapons. */
+  union?: [string, string];
+  subs?: string[];
+  /** Internal definitions not shown in level-up pools. */
+  hidden?: boolean;
   tags: Array<'projectile' | 'area' | 'dot' | 'melee' | 'random' | 'summon'>;
   knockback: number;
 }
@@ -68,7 +85,7 @@ export interface PassiveDef {
   desc: string;
   per: Partial<Stats>; // per level
   maxLevel: number;
-  special?: 'nightstudy';
+  special?: 'nightstudy' | 'friendship' | 'diligence';
 }
 
 export type EnemyBehavior =
@@ -85,7 +102,8 @@ export type EnemyBehavior =
   | 'hazard'
   | 'summoner'
   | 'blink'
-  | 'shield';
+  | 'shield'
+  | 'prop';
 
 export interface EnemyDef {
   id: string;

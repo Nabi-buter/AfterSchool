@@ -12,7 +12,7 @@ export interface RunSetup {
 
 interface UIState {
   screen: Screen;
-  codexTab: 'chars' | 'weapons' | 'passives' | 'enemies' | 'bosses';
+  codexTab: 'chars' | 'weapons' | 'passives' | 'items' | 'enemies' | 'bosses';
   run: RunSetup | null;
   result: { run: RunResult; summary: RunSummary } | null;
   go: (s: Screen) => void;

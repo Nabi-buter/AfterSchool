@@ -1,7 +1,8 @@
 import type { Game } from '../core/Game';
-import type { Enemy, Projectile, Zone } from '../core/world';
+import type { Enemy, Projectile, WeaponInst, Zone } from '../core/world';
+import { COMPASS_TRAIL, compassRadius, eff, firingInsts, glyph, rulerLength } from '../systems/weapons';
 import { drawProp, floorTile } from './stageArt';
-import { pickupSprite, enemySprite, type Sprite } from './sprites';
+import { pickupSprite, enemySprite, iconSprite, type Sprite } from './sprites';
 import { PAL } from './pixelmaps';
 
 const TAU = Math.PI * 2;
@@ -24,7 +25,7 @@ export class Renderer {
     this.pattern = this.ctx.createPattern(tile, 'repeat');
     this.pattern?.setTransform(new DOMMatrix().scale(PX, PX));
     this.bookSprite = makeBook();
-    this.clockSprite = enemySprite('bomb');
+    this.clockSprite = enemySprite('fclock');
   }
 
   draw(dt: number) {
@@ -111,7 +112,13 @@ export class Renderer {
       if (!pk.alive || !inView(pk.x, pk.y, 20)) continue;
       const sp = pickupSprite(pk.kind);
       const bob = pk.kind === 'chest' ? Math.sin(this.time * 3) * 2 : Math.sin(this.time * 5 + pk.x * 0.05) * 1.5;
-      const sc = pk.kind === 'chest' ? PX * 1.4 : pk.kind === 'gem3' ? PX * 1.1 : PX * 0.9;
+      const sc = pk.kind === 'chest' ? PX * 1.4 : pk.kind === 'gem3' ? PX * 1.1 : pk.kind.startsWith('gem') || pk.kind === 'coin' ? PX * 0.9 : PX * 1.15;
+      if (pk.kind === 'bell' || pk.kind === 'clock' || pk.kind === 'energy' || pk.kind === 'feast' || pk.kind === 'coinbag' || pk.kind === 'magnet') {
+        c.fillStyle = `rgba(104,182,170,${0.16 + Math.sin(this.time * 5) * 0.06})`;
+        c.beginPath();
+        c.arc(pk.x, pk.y, 20, 0, TAU);
+        c.fill();
+      }
       if (pk.kind === 'chest') {
         c.fillStyle = `rgba(226,185,74,${0.18 + Math.sin(this.time * 4) * 0.08})`;
         c.beginPath();
@@ -119,6 +126,12 @@ export class Renderer {
         c.fill();
       }
       c.drawImage(sp.img, pk.x - (sp.w * sc) / 2, pk.y - (sp.h * sc) / 2 + bob, sp.w * sc, sp.h * sc);
+    }
+
+    // weapon ground layer (auras, drawn circles)
+    for (const w of firingInsts(g)) {
+      if (w.def.kind === 'recorder') this.drawRecorderAura(w);
+      else if (w.def.kind === 'compass' && (w.active > 0 || w.def.isEvolution)) this.drawCompassTrail(w);
     }
 
     // enemy shadows
@@ -144,19 +157,18 @@ export class Renderer {
     // player
     this.drawPlayer();
 
-    // compass blades
-    for (const w of g.weapons) {
-      if (w.def.kind !== 'compass' || (w.active <= 0 && !w.def.isEvolution)) continue;
-      const P = g.player.stats;
-      let count = w.stats.count + P.amount;
-      if (g.synergies.has('draft')) count++;
-      const R = 66 * w.stats.area * P.area;
-      for (let i = 0; i < count; i++) {
-        const a = w.angle + (i / count) * TAU;
-        const bx = g.player.x + Math.cos(a) * R;
-        const by = g.player.y + Math.sin(a) * R;
-        this.drawCompass(bx, by, a, w.stats.area * P.area, !!w.def.isEvolution);
-      }
+    // held weapons (compass instrument, ruler swing, recorder)
+    for (const w of firingInsts(g)) {
+      if (w.def.kind === 'compass' && (w.active > 0 || w.def.isEvolution)) this.drawCompassTool(w);
+      else if (w.def.kind === 'ruler' && w.swing > 0) this.drawRuler(w);
+    }
+    if (g.energyT > 0) {
+      const p = g.player;
+      c.strokeStyle = `rgba(226,185,74,${0.4 + Math.sin(this.time * 14) * 0.2})`;
+      c.lineWidth = 3;
+      c.beginPath();
+      c.arc(p.x, p.y - 6, 26, 0, TAU);
+      c.stroke();
     }
 
     // projectiles
@@ -253,7 +265,7 @@ export class Renderer {
       h = sp.h * PX * 1.6;
     }
     // simple squash-walk
-    const bob = e.def.behavior === 'swarm' ? 0 : Math.abs(Math.sin(e.t2 * 7 + e.uid)) * 2;
+    const bob = e.def.behavior === 'swarm' || e.def.behavior === 'prop' ? 0 : Math.abs(Math.sin(e.t2 * 7 + e.uid)) * 2;
     const sq = 1 + Math.sin(e.t2 * 14 + e.uid) * 0.03;
     const x = e.x - w / 2;
     const y = e.y - h * 0.62 - bob;
@@ -326,36 +338,256 @@ export class Renderer {
     c.fillRect(p.x + p.facex * 24 - 2, p.y + p.facey * 24 - 2, 4, 4);
   }
 
-  private drawCompass(x: number, y: number, a: number, area: number, evo: boolean) {
+  // ───────── compass: needle on the player, pencil leg drawing a circle ─────────
+  private drawCompassTrail(w: WeaponInst) {
+    const g = this.g;
     const c = this.ctx;
+    const e = eff(g, w);
+    const R = compassRadius(e);
+    const p = g.player;
+    const evo = !!w.def.isEvolution;
+    c.lineCap = 'round';
+    if (evo) {
+      // a finished circle that never fades
+      c.strokeStyle = 'rgba(226,185,74,0.22)';
+      c.lineWidth = 12;
+      c.beginPath();
+      c.arc(p.x, p.y, R, 0, TAU);
+      c.stroke();
+      c.strokeStyle = 'rgba(42,30,16,0.85)';
+      c.lineWidth = 3;
+      c.stroke();
+      c.strokeStyle = 'rgba(241,220,160,0.7)';
+      c.lineWidth = 1.5;
+      c.stroke();
+      return;
+    }
+    for (let i = 0; i < e.count; i++) {
+      const tip = w.angle + (i / e.count) * TAU;
+      const seg = 6;
+      for (let k = 0; k < seg; k++) {
+        const a0 = tip - COMPASS_TRAIL * ((k + 1) / seg);
+        const a1 = tip - COMPASS_TRAIL * (k / seg);
+        const alpha = 1 - k / seg;
+        c.strokeStyle = `rgba(216,220,228,${0.35 * alpha})`;
+        c.lineWidth = 8;
+        c.beginPath();
+        c.arc(p.x, p.y, R, a0, a1);
+        c.stroke();
+        c.strokeStyle = `rgba(32,36,46,${0.9 * alpha})`;
+        c.lineWidth = 3;
+        c.beginPath();
+        c.arc(p.x, p.y, R, a0, a1);
+        c.stroke();
+      }
+    }
+    c.lineCap = 'butt';
+  }
+
+  private drawCompassTool(w: WeaponInst) {
+    const g = this.g;
+    const c = this.ctx;
+    const e = eff(g, w);
+    const R = compassRadius(e);
+    const p = g.player;
+    const evo = !!w.def.isEvolution;
+    const metal = evo ? '#E2B94A' : '#C3CAD4';
+    const metalDark = evo ? '#8A6420' : '#6C7486';
+    const nx = p.x;
+    const ny = p.y + 4; // needle point at the player's feet
+    // extra drawing heads: just the pencil stub on the circle (one real compass keeps it readable)
+    for (let i = 1; i < e.count; i++) {
+      const tip = w.angle + (i / e.count) * TAU;
+      const tx = nx + Math.cos(tip) * R;
+      const ty = ny + Math.sin(tip) * R;
+      const sx = tx - Math.cos(tip) * 14;
+      const sy = ty - Math.sin(tip) * 14 - 16;
+      c.lineCap = 'round';
+      c.strokeStyle = '#14161F';
+      c.lineWidth = 8;
+      c.beginPath();
+      c.moveTo(sx, sy);
+      c.lineTo(tx, ty);
+      c.stroke();
+      c.strokeStyle = evo ? '#E2B94A' : '#E2B94A';
+      c.lineWidth = 5;
+      c.beginPath();
+      c.moveTo(sx, sy);
+      c.lineTo(sx + (tx - sx) * 0.65, sy + (ty - sy) * 0.65);
+      c.stroke();
+      c.strokeStyle = '#E8C9A0';
+      c.beginPath();
+      c.moveTo(sx + (tx - sx) * 0.65, sy + (ty - sy) * 0.65);
+      c.lineTo(tx, ty);
+      c.stroke();
+      c.fillStyle = metal;
+      c.fillRect(sx - 3, sy - 3, 6, 6);
+      c.fillStyle = '#2A2D3A';
+      c.beginPath();
+      c.arc(tx, ty, 2.5, 0, TAU);
+      c.fill();
+    }
+    {
+      const i = 0;
+      const tip = w.angle + (i / e.count) * TAU;
+      const tx = nx + Math.cos(tip) * R;
+      const ty = ny + Math.sin(tip) * R;
+      // the hinge stands up above the midpoint: a compass is a standing "A"
+      const hx = (nx + tx) / 2;
+      const hy = (ny + ty) / 2 - Math.max(26, R * 0.45);
+      const leg = (x1: number, y1: number, x2: number, y2: number) => {
+        c.strokeStyle = '#14161F';
+        c.lineWidth = 7;
+        c.beginPath();
+        c.moveTo(x1, y1);
+        c.lineTo(x2, y2);
+        c.stroke();
+        c.strokeStyle = metal;
+        c.lineWidth = 4;
+        c.stroke();
+        c.strokeStyle = metalDark;
+        c.lineWidth = 1.5;
+        c.beginPath();
+        c.moveTo(x1 + 1.5, y1);
+        c.lineTo(x2 + 1.5, y2);
+        c.stroke();
+      };
+      c.lineCap = 'round';
+      // needle leg
+      leg(hx, hy, nx, ny);
+      // pencil leg: metal, then a short wooden pencil with graphite tip
+      const px1 = hx + (tx - hx) * 0.72;
+      const py1 = hy + (ty - hy) * 0.72;
+      leg(hx, hy, px1, py1);
+      c.strokeStyle = '#14161F';
+      c.lineWidth = 8;
+      c.beginPath();
+      c.moveTo(px1, py1);
+      c.lineTo(tx, ty);
+      c.stroke();
+      c.strokeStyle = '#E2B94A';
+      c.lineWidth = 5;
+      c.beginPath();
+      c.moveTo(px1, py1);
+      c.lineTo(px1 + (tx - px1) * 0.7, py1 + (ty - py1) * 0.7);
+      c.stroke();
+      c.strokeStyle = '#E8C9A0';
+      c.beginPath();
+      c.moveTo(px1 + (tx - px1) * 0.7, py1 + (ty - py1) * 0.7);
+      c.lineTo(tx, ty);
+      c.stroke();
+      c.fillStyle = '#2A2D3A';
+      c.beginPath();
+      c.arc(tx, ty, 2.5, 0, TAU);
+      c.fill();
+      // hinge joint + knurled handle
+      c.fillStyle = '#14161F';
+      c.fillRect(hx - 5, hy - 16, 10, 14);
+      c.fillStyle = metalDark;
+      c.fillRect(hx - 3, hy - 14, 6, 10);
+      c.fillStyle = metal;
+      c.fillRect(hx - 3, hy - 14, 2, 10);
+      c.fillStyle = '#14161F';
+      c.beginPath();
+      c.arc(hx, hy, 6, 0, TAU);
+      c.fill();
+      c.fillStyle = metal;
+      c.beginPath();
+      c.arc(hx, hy, 4, 0, TAU);
+      c.fill();
+      // graphite dust at the drawing point
+      if (Math.random() < 0.3) {
+        c.fillStyle = 'rgba(42,45,58,0.6)';
+        c.fillRect(tx + (Math.random() - 0.5) * 6, ty + (Math.random() - 0.5) * 6, 2, 2);
+      }
+    }
+    // needle point
+    c.fillStyle = '#14161F';
+    c.fillRect(nx - 1.5, ny - 1.5, 3, 3);
+    c.lineCap = 'butt';
+  }
+
+  // ───────── ruler: a transparent 30cm ruler swinging around the player ─────────
+  private drawRuler(w: WeaponInst) {
+    const g = this.g;
+    const c = this.ctx;
+    const e = eff(g, w);
+    const L = rulerLength(e);
+    const p = g.player;
+    const evo = !!w.def.isEvolution;
+    const W = (evo ? 22 : 16) * Math.sqrt(e.area);
+    const ox = p.x;
+    const oy = p.y - 6;
+    // motion smear between the start of the swing and the ruler
+    const start = w.burstT - (w.swingDir * (evo ? Math.PI : 1.15));
+    c.fillStyle = evo ? 'rgba(226,185,74,0.10)' : 'rgba(241,235,221,0.08)';
+    c.beginPath();
+    c.moveTo(ox, oy);
+    if (w.swingDir > 0) c.arc(ox, oy, L, start, w.angle);
+    else c.arc(ox, oy, L, w.angle, start);
+    c.closePath();
+    c.fill();
     c.save();
-    c.translate(x, y);
-    c.rotate(a + Math.PI / 2);
-    const s = 1.1 * Math.sqrt(area);
-    c.scale(s, s);
-    c.fillStyle = PAL.o;
-    c.fillRect(-9, -15, 18, 30);
-    c.fillStyle = evo ? '#E2B94A' : '#D8DCE4';
-    c.beginPath();
-    c.moveTo(-6, -12);
-    c.lineTo(-1, 12);
-    c.lineTo(-4, 12);
-    c.closePath();
-    c.fill();
-    c.beginPath();
-    c.moveTo(6, -12);
-    c.lineTo(2, 12);
-    c.lineTo(5, 12);
-    c.closePath();
-    c.fill();
-    c.fillStyle = evo ? '#C79A4A' : '#9CA3AF';
-    c.fillRect(-6, -15, 12, 6);
+    c.translate(ox, oy);
+    c.rotate(w.angle);
+    c.fillStyle = '#14161F';
+    c.fillRect(10, -W / 2 - 2, L - 8, W + 4);
+    c.fillStyle = evo ? 'rgba(226,185,74,0.85)' : 'rgba(176,214,226,0.8)';
+    c.fillRect(12, -W / 2, L - 12, W);
+    c.fillStyle = 'rgba(255,255,255,0.35)';
+    c.fillRect(12, -W / 2, L - 12, 3);
+    // tick marks every "centimetre"
+    c.fillStyle = 'rgba(20,22,31,0.75)';
+    const step = (L - 16) / 30;
+    for (let i = 0; i <= 30; i++) {
+      const x = 14 + i * step;
+      const h = i % 10 === 0 ? W * 0.6 : i % 5 === 0 ? W * 0.42 : W * 0.25;
+      c.fillRect(x, W / 2 - h, 1.2, h);
+    }
     c.restore();
-    c.strokeStyle = evo ? 'rgba(226,185,74,0.25)' : 'rgba(216,220,228,0.18)';
-    c.lineWidth = 3;
+  }
+
+  // ───────── recorder: a soft sound field with notes drifting around ─────────
+  private drawRecorderAura(w: WeaponInst) {
+    const g = this.g;
+    const c = this.ctx;
+    const e = eff(g, w);
+    const R = 64 * e.area;
+    const p = g.player;
+    const evo = !!w.def.isEvolution;
+    const pulse = (w.timer / Math.max(0.05, e.cd));
+    c.fillStyle = evo ? 'rgba(104,182,170,0.10)' : 'rgba(104,182,170,0.06)';
     c.beginPath();
-    c.arc(x, y, 16 * area, 0, TAU);
+    c.arc(p.x, p.y, R, 0, TAU);
+    c.fill();
+    c.strokeStyle = `rgba(104,182,170,${0.25 + (1 - pulse) * 0.35})`;
+    c.lineWidth = 2;
+    c.setLineDash([6, 8]);
+    c.lineDashOffset = -this.time * 20;
+    c.beginPath();
+    c.arc(p.x, p.y, R * (0.92 + (1 - pulse) * 0.08), 0, TAU);
     c.stroke();
+    c.setLineDash([]);
+    // notes
+    const n = evo ? 6 : 4;
+    c.font = '700 15px Galmuri11, monospace';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    for (let i = 0; i < n; i++) {
+      const a = this.time * 0.9 + (i / n) * TAU;
+      const rr = R * (0.55 + 0.35 * ((this.time * 0.4 + i * 0.37) % 1));
+      const x = p.x + Math.cos(a) * rr;
+      const y = p.y + Math.sin(a) * rr - ((this.time * 30 + i * 13) % 14);
+      c.lineWidth = 3;
+      c.strokeStyle = '#14161F';
+      const ch = i % 2 ? '♪' : '♫';
+      c.strokeText(ch, x, y);
+      c.fillStyle = evo ? '#E2B94A' : '#9FD8CE';
+      c.fillText(ch, x, y);
+    }
+    // the recorder itself, held beside the player
+    const img = iconSprite('recorder');
+    c.drawImage(img, p.x + 10, p.y - 30 + Math.sin(this.time * 6) * 1.5, 20, 20);
   }
 
   private drawProjectile(p: Projectile) {
@@ -365,7 +597,7 @@ export class Renderer {
       case 'chalk': {
         c.save();
         c.translate(p.x, p.y);
-        c.rotate(a);
+        c.rotate(a + Math.sin(p.t * 30) * 0.5);
         const L = p.evo ? 22 : 15;
         c.fillStyle = PAL.o;
         c.fillRect(-L / 2 - 2, -5, L + 4, 10);
@@ -433,18 +665,77 @@ export class Renderer {
         break;
       }
       case 'edict': {
+        // the dictionary fires words: glowing glyphs with a faint trail
+        c.fillStyle = p.evo ? 'rgba(226,185,74,0.25)' : 'rgba(104,182,170,0.25)';
+        c.fillRect(p.x - p.vx * 0.03 - 2, p.y - p.vy * 0.03 - 2, 4, 4);
+        c.fillRect(p.x - p.vx * 0.06 - 1.5, p.y - p.vy * 0.06 - 1.5, 3, 3);
+        c.font = `700 ${p.evo ? 18 : 15}px Galmuri11, monospace`;
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.lineJoin = 'round';
+        c.lineWidth = 4;
+        c.strokeStyle = PAL.o;
+        const ch = glyph(p.a);
+        c.strokeText(ch, p.x, p.y);
+        c.fillStyle = p.evo ? '#E2B94A' : '#9FD8CE';
+        c.fillText(ch, p.x, p.y);
+        break;
+      }
+      case 'eraser': {
         c.save();
         c.translate(p.x, p.y);
-        c.rotate(a);
+        c.rotate(p.t * 14);
+        const s = p.r / 11;
+        c.scale(s, s);
         c.fillStyle = PAL.o;
-        c.fillRect(-9, -5, 18, 10);
-        c.fillStyle = p.evo ? '#E2B94A' : '#68B6AA';
-        c.fillRect(-7, -3, 14, 6);
+        c.fillRect(-12, -7, 24, 14);
+        c.fillStyle = p.evo ? '#F2A6B4' : '#E8A0AE';
+        c.fillRect(-10, -5, 20, 10);
+        c.fillStyle = '#5B7FB0';
+        c.fillRect(-1, -5, 11, 10);
         c.fillStyle = '#F1EBDD';
-        c.fillRect(1, -1, 4, 2);
+        c.fillRect(2, -2, 5, 1.5);
+        c.fillRect(2, 1, 4, 1.5);
         c.restore();
-        c.fillStyle = 'rgba(104,182,170,0.3)';
-        c.fillRect(p.x - p.vx * 0.03 - 2, p.y - p.vy * 0.03 - 2, 4, 4);
+        break;
+      }
+      case 'slipper': {
+        // shadow on the ground under the arc
+        c.save();
+        c.translate(p.x, p.y);
+        c.rotate(p.t * 11 * (p.vx >= 0 ? 1 : -1));
+        const s = p.c * 1.1;
+        c.scale(s, s);
+        c.fillStyle = PAL.o;
+        c.fillRect(-8, -14, 16, 28);
+        c.fillStyle = p.evo ? '#E2B94A' : '#F4F2EC';
+        c.fillRect(-6, -12, 12, 24);
+        c.fillStyle = p.evo ? '#B08A2E' : '#3A5480';
+        c.fillRect(-6, -9, 12, 9);
+        c.fillStyle = p.evo ? '#F2D88A' : '#F4F2EC';
+        c.fillRect(-4, -9, 1.5, 9);
+        c.fillRect(-0.75, -9, 1.5, 9);
+        c.fillRect(2.5, -9, 1.5, 9);
+        c.restore();
+        break;
+      }
+      case 'inkdrop': {
+        const k = Math.min(1, p.t / p.maxLife);
+        const h = Math.sin(k * Math.PI) * 46;
+        c.fillStyle = 'rgba(0,0,0,0.25)';
+        c.beginPath();
+        c.ellipse(p.x, p.y + 8, 5, 2, 0, 0, TAU);
+        c.fill();
+        c.fillStyle = PAL.o;
+        c.beginPath();
+        c.arc(p.x, p.y - h, 6, 0, TAU);
+        c.fill();
+        c.fillStyle = '#2E3A58';
+        c.beginPath();
+        c.arc(p.x, p.y - h, 4, 0, TAU);
+        c.fill();
+        c.fillStyle = 'rgba(241,235,221,0.6)';
+        c.fillRect(p.x - 2, p.y - h - 3, 2, 2);
         break;
       }
       case 'cart': {
@@ -516,6 +807,20 @@ export class Renderer {
         c.beginPath();
         c.arc(z.x, z.y, z.r, 0, TAU);
         c.fill();
+        // field lines: red pole on one side, blue on the other
+        for (let i = 0; i < 3; i++) {
+          const rr = 28 + i * 18 + ((this.time * 40) % 18);
+          c.lineWidth = 2;
+          c.strokeStyle = `rgba(201,86,60,${0.5 - i * 0.12})`;
+          c.beginPath();
+          c.arc(z.x, z.y - 4, rr, Math.PI * 0.6, Math.PI * 1.4);
+          c.stroke();
+          c.strokeStyle = `rgba(91,127,176,${0.5 - i * 0.12})`;
+          c.beginPath();
+          c.arc(z.x, z.y - 4, rr, -Math.PI * 0.4, Math.PI * 0.4);
+          c.stroke();
+        }
+        c.drawImage(iconSprite('magnet'), z.x - 15, z.y - 34 + Math.sin(this.time * 8) * 2, 30, 30);
         break;
       }
       case 'alarm': {
@@ -529,7 +834,21 @@ export class Renderer {
         c.beginPath();
         c.arc(z.x, z.y, z.r * (1 - k), 0, TAU);
         c.stroke();
-        if (z.b === 0) c.drawImage(sp.img, z.x - 16 + shake, z.y - 18, 33, 33);
+        if (z.b === 0) {
+          c.drawImage(sp.img, z.x - 16 + shake, z.y - 18, 33, 33);
+          if (z.life < 0.6) {
+            // ringing lines
+            c.strokeStyle = 'rgba(241,235,221,0.8)';
+            c.lineWidth = 2;
+            for (const sd of [-1, 1]) {
+              for (let i = 0; i < 2; i++) {
+                c.beginPath();
+                c.arc(z.x, z.y - 4, 22 + i * 7, sd > 0 ? -0.6 : Math.PI - 0.6, sd > 0 ? 0.6 : Math.PI + 0.6);
+                c.stroke();
+              }
+            }
+          }
+        }
         break;
       }
       case 'drop': {
@@ -547,6 +866,94 @@ export class Renderer {
         c.restore();
         break;
       }
+      case 'tape': {
+        const a = Math.min(1, z.life * 1.5);
+        c.save();
+        c.translate(z.x, z.y);
+        c.rotate(z.a);
+        c.globalAlpha = a;
+        c.fillStyle = 'rgba(0,0,0,0.18)';
+        c.fillRect(-z.r, -z.b / 2 + 2, z.r * 2, z.b);
+        c.fillStyle = z.evo ? '#FFFFFF' : '#ECEAE2';
+        c.fillRect(-z.r, -z.b / 2, z.r * 2, z.b);
+        c.fillStyle = 'rgba(156,163,175,0.5)';
+        c.fillRect(-z.r, -z.b / 2, z.r * 2, 1);
+        c.globalAlpha = 1;
+        c.restore();
+        break;
+      }
+      case 'tack': {
+        const lift = z.tick > 0 ? z.tick * 80 : 0;
+        const cols = ['#C9563C', '#5B7FB0', '#E2B94A', '#68B6AA'];
+        c.fillStyle = 'rgba(0,0,0,0.3)';
+        c.beginPath();
+        c.ellipse(z.x + 2, z.y + 3, 5, 2, 0, 0, TAU);
+        c.fill();
+        c.fillStyle = '#9CA3AF';
+        c.fillRect(z.x - 0.5, z.y - lift, 1.5, 4);
+        c.fillStyle = PAL.o;
+        c.beginPath();
+        c.arc(z.x, z.y - 2 - lift, 6, 0, TAU);
+        c.fill();
+        c.fillStyle = z.evo ? '#E69A5A' : cols[z.b % 4];
+        c.beginPath();
+        c.arc(z.x, z.y - 2 - lift, 4.2, 0, TAU);
+        c.fill();
+        c.fillStyle = 'rgba(255,255,255,0.6)';
+        c.fillRect(z.x - 2, z.y - 5 - lift, 2, 2);
+        break;
+      }
+      case 'beam': {
+        const grow = Math.min(1, (z.maxLife - z.life) / 0.12);
+        const fade = Math.min(1, z.life / 0.15);
+        const L = z.r * grow;
+        c.save();
+        c.translate(z.x, z.y);
+        c.rotate(z.a);
+        c.globalAlpha = fade;
+        c.fillStyle = z.evo ? 'rgba(255,170,210,0.45)' : 'rgba(214,240,90,0.5)';
+        // chisel-tip stroke: slanted ends like a real highlighter line
+        c.beginPath();
+        c.moveTo(14, -z.b / 2);
+        c.lineTo(L, -z.b / 2);
+        c.lineTo(L - z.b * 0.5, z.b / 2);
+        c.lineTo(14 - z.b * 0.5, z.b / 2);
+        c.closePath();
+        c.fill();
+        c.fillStyle = z.evo ? 'rgba(255,230,240,0.8)' : 'rgba(245,255,200,0.75)';
+        c.fillRect(14, -1.5, L - 18, 3);
+        // the marker itself at the start of the stroke
+        c.drawImage(iconSprite('highlighter'), 0, -14, 24, 24);
+        c.globalAlpha = 1;
+        c.restore();
+        break;
+      }
+      case 'bolt': {
+        const a = z.life / z.maxLife;
+        const segs = 7;
+        const pts: [number, number][] = [];
+        for (let i = 0; i <= segs; i++) {
+          const k = i / segs;
+          const jitter = i === 0 || i === segs ? 0 : (Math.random() - 0.5) * 22;
+          pts.push([z.a + (z.x - z.a) * k + jitter, z.b + (z.y - z.b) * k]);
+        }
+        c.lineJoin = 'round';
+        for (const [wdt, col] of [
+          [8, `rgba(104,182,170,${0.4 * a})`],
+          [3, `rgba(230,246,255,${a})`],
+        ] as const) {
+          c.strokeStyle = col;
+          c.lineWidth = wdt;
+          c.beginPath();
+          pts.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y)));
+          c.stroke();
+        }
+        c.fillStyle = `rgba(191,227,242,${0.35 * a})`;
+        c.beginPath();
+        c.arc(z.x, z.y, z.r, 0, TAU);
+        c.fill();
+        break;
+      }
       case 'wave': {
         if (z.hostile) {
           // boss ring with a safe gap
@@ -561,6 +968,7 @@ export class Renderer {
           c.stroke();
         } else {
           const fade = 1 - z.r / Math.max(1, z.b);
+          if (z.r < 60) c.drawImage(iconSprite('speaker'), z.x - 34, z.y - 40, 24, 24);
           c.lineWidth = z.evo ? 6 : 4;
           c.strokeStyle = z.evo ? `rgba(226,185,74,${fade * 0.8})` : `rgba(104,182,170,${fade * 0.75})`;
           c.beginPath();
@@ -586,6 +994,10 @@ export class Renderer {
     // stage tint
     c.fillStyle = g.stage.palette.ambient;
     c.fillRect(0, 0, v.w, v.h);
+    if (g.freezeT > 0) {
+      c.fillStyle = `rgba(120,170,220,${0.14 * Math.min(1, g.freezeT)})`;
+      c.fillRect(0, 0, v.w, v.h);
+    }
     // rooftop: sunset to night progression
     if (g.stage.id === 'rooftop') {
       const k = Math.min(1, g.time / (g.stage.duration * 0.85));

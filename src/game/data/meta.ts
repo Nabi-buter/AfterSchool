@@ -41,6 +41,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'run_kills', name: '한 반 전체', desc: '한 판에서 800마리를 처치한다.', reward: 200 },
   { id: 'level30', name: '수석 입학', desc: '한 판에서 레벨 30에 도달한다.', reward: 250 },
   { id: 'evolve1', name: '진화론', desc: '무기를 처음으로 진화시킨다.', reward: 150 },
+  { id: 'union1', name: '단짝', desc: '두 무기를 처음으로 조합한다.', reward: 200 },
   { id: 'evolve5', name: '진화의 정점', desc: '서로 다른 진화 무기 5종을 획득한다.', reward: 500 },
   { id: 'synergy1', name: '조별 과제', desc: '시너지를 처음으로 발동한다.', reward: 100 },
   { id: 'fullbuild', name: '꽉 찬 필통', desc: '한 판에서 무기 6개를 보유한다.', reward: 150 },

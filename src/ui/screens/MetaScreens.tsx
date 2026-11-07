@@ -5,6 +5,7 @@ import { WEAPONS, WEAPON_MAP } from '../../game/data/weapons';
 import { PASSIVES, PASSIVE_MAP } from '../../game/data/passives';
 import { ENEMIES, BOSSES } from '../../game/data/enemies';
 import { STAGES } from '../../game/data/stages';
+import { FIELD_ITEMS } from '../../game/data/misc';
 import { iconUrl, silhouetteUrl, spriteUrl } from '../../game/render/sprites';
 import { useMeta } from '../../meta/store';
 import { useUI } from '../uiStore';
@@ -83,6 +84,7 @@ export function CodexScreen() {
     ['chars', '학생'],
     ['weapons', '무기'],
     ['passives', '능력'],
+    ['items', '아이템'],
     ['enemies', '적'],
     ['bosses', '보스'],
   ] as const;
@@ -104,7 +106,9 @@ export function CodexScreen() {
         ? WEAPONS.map((w) => ({ id: w.id, name: w.name, img: iconUrl(w.id, !!w.isEvolution), ok: known.weapons(w.id) }))
         : tab === 'passives'
           ? PASSIVES.map((p) => ({ id: p.id, name: p.name, img: iconUrl(p.id), ok: known.passives(p.id) }))
-          : tab === 'enemies'
+          : tab === 'items'
+            ? FIELD_ITEMS.map((f) => ({ id: f.id, name: f.name, img: f.id === 'chest' ? spriteUrl('enemy', 'chest_pickup') : iconUrl(f.id), ok: true }))
+            : tab === 'enemies'
             ? ENEMIES.map((e) => ({ id: e.id, name: e.name, img: known.enemies(e.id) ? spriteUrl('enemy', e.sprite === 'mimic' ? 'mimic' : e.sprite) : silhouetteUrl('enemy', e.sprite), ok: known.enemies(e.id) }))
             : BOSSES.map((b) => ({ id: b.id, name: b.name, img: known.bosses(b.id) ? spriteUrl('enemy', b.sprite, undefined, 3) : silhouetteUrl('enemy', b.sprite, undefined, 3), ok: known.bosses(b.id) }));
 
@@ -183,7 +187,21 @@ function CodexDetail({ tab, id, ok, img }: { tab: string; id: string; ok: boolea
       const base = WEAPONS.find((x) => x.evolvesInto === id)!;
       rows.push(['진화 전', save.codex.weapons.includes(base.id) ? base.name : '???'], ['필요 능력', ok ? PASSIVE_MAP[base.evolvesWith!].name : '???']);
     }
-    if (ok) rows.push(['최대 레벨', w.isEvolution ? '-' : String(w.levels.length + 1)]);
+    if (w.union) {
+      const [a, b] = w.union;
+      const nm = (x: string) => (save.codex.weapons.includes(x) ? WEAPON_MAP[x].name : '???');
+      sub = '조합 무기';
+      rows.push(['조합 재료', `${nm(a)} + ${nm(b)}`], ['조건', '두 무기 모두 최대 레벨']);
+      if (ok) rows.push(['포함 효과', w.subs!.map((x) => WEAPON_MAP[x].name).join(' · ')]);
+    } else if (ok) rows.push(['최대 레벨', w.isEvolution ? '-' : String(w.levels.length + 1)]);
+    const unions = WEAPONS.filter((u) => u.union?.includes(id));
+    if (ok && unions.length) rows.push(['조합', unions.map((u) => (save.codex.weapons.includes(u.id) ? u.name : '???')).join(', ')]);
+  } else if (tab === 'items') {
+    const f = FIELD_ITEMS.find((x) => x.id === id)!;
+    title = f.name;
+    sub = '필드 아이템';
+    body = f.desc;
+    rows.push(['획득처', f.where]);
   } else if (tab === 'passives') {
     const p = PASSIVE_MAP[id];
     title = ok ? p.name : '???';

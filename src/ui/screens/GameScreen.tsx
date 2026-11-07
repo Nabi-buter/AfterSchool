@@ -452,11 +452,12 @@ function LevelUpView({ ev, game }: { ev: Extract<GameEvent, { type: 'levelup' }>
 
 function OptionCard({ o, i, focused, picked, dim, onPick, onHover }: { o: UpgradeOption; i: number; focused: boolean; picked: boolean; dim: boolean; onPick: () => void; onHover: () => void }) {
   const evo = o.kind === 'evolve';
+  const uni = o.kind === 'union';
   const isWeapon = o.kind === 'weapon' || evo;
   const iconId = evo ? WEAPON_MAP[o.id].evolvesInto! : o.id;
-  const icon = o.kind === 'heal' ? iconUrl('lunch') : o.kind === 'coin' ? iconUrl('allowance') : iconUrl(iconId, evo, 4);
+  const icon = o.kind === 'heal' ? iconUrl('lunch') : o.kind === 'coin' ? iconUrl('allowance') : iconUrl(iconId, evo || uni, 4);
   const max = isWeapon && !evo ? WEAPON_MAP[o.id].levels.length + 1 : o.kind === 'passive' ? PASSIVE_MAP[o.id].maxLevel : 0;
-  const tagColor = evo ? '#E2B94A' : o.isNew ? 'var(--accent)' : 'var(--teal)';
+  const tagColor = uni ? 'var(--teal)' : evo ? '#E2B94A' : o.isNew ? 'var(--accent)' : 'var(--teal)';
   return (
     <button
       onClick={onPick}
@@ -468,7 +469,7 @@ function OptionCard({ o, i, focused, picked, dim, onPick, onHover }: { o: Upgrad
       style={{
         animationDelay: picked ? '0ms' : `${i * 55}ms`,
         background: focused ? '#1E2E48' : 'var(--navy2)',
-        borderColor: evo ? '#E2B94A' : focused ? 'rgba(241,235,221,0.5)' : 'var(--rule)',
+        borderColor: uni ? 'var(--teal)' : evo ? '#E2B94A' : focused ? 'rgba(241,235,221,0.5)' : 'var(--rule)',
         opacity: dim ? 0.3 : 1,
       }}
     >
@@ -497,6 +498,7 @@ function OptionCard({ o, i, focused, picked, dim, onPick, onHover }: { o: Upgrad
         )}
         <div className="text-[13px] md:text-sm text-ivory/75 mt-1.5 md:mt-2.5 leading-snug">{o.desc}</div>
         {evo && <div className="text-xs mt-2" style={{ color: '#E2B94A' }}>{WEAPON_MAP[o.id].name} → {o.name}</div>}
+        {uni && <div className="text-xs mt-2" style={{ color: 'var(--teal)' }}>{WEAPON_MAP[WEAPON_MAP[o.id].union![0]].name} + {WEAPON_MAP[WEAPON_MAP[o.id].union![1]].name} → 무기 칸 1개 확보</div>}
       </div>
     </button>
   );

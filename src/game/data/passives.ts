@@ -16,6 +16,11 @@ export const PASSIVES: PassiveDef[] = [
   { id: 'presentation', name: '발표력', desc: '투사체 속도 +12%, 지속시간 +10%', per: { projSpeed: 0.12, duration: 0.1 }, maxLevel: 5 },
   { id: 'lunch', name: '급식 우선권', desc: '회복량 +30%, 반찬 드롭 증가', per: { healMult: 0.3 }, maxLevel: 3 },
   { id: 'allowance', name: '용돈 관리', desc: '학교 코인 획득량 +15%', per: { coinGain: 0.15 }, maxLevel: 3 },
+  { id: 'posture', name: '바른 자세', desc: '넉백 +25%, 최대 체력 +10', per: { knock: 0.25, maxHp: 10 }, maxLevel: 5 },
+  { id: 'reflex', name: '반사 신경', desc: '피격 후 무적 시간 +0.08초, 이동 속도 +3%', per: { iframe: 0.08, speed: 0.03 }, maxLevel: 5 },
+  { id: 'curiosity', name: '탐구심', desc: '아이템 드롭률 +20%, 행운 +5%', per: { drop: 0.2, luck: 0.05 }, maxLevel: 5 },
+  { id: 'friendship', name: '우정', desc: '쓰러져도 한 번 더 일어난다 (부활 +1)', per: {}, maxLevel: 1, special: 'friendship' },
+  { id: 'diligence', name: '성실함', desc: '경험치 조각을 먹을 때 확률적으로 체력 회복', per: {}, maxLevel: 5, special: 'diligence' },
 ];
 
 export const PASSIVE_MAP: Record<string, PassiveDef> = Object.fromEntries(PASSIVES.map((p) => [p.id, p]));
@@ -38,6 +43,9 @@ export const BASE_STATS: Stats = {
   xpGain: 1,
   coinGain: 1,
   healMult: 1,
+  knock: 1,
+  iframe: 0,
+  drop: 1,
 };
 
 export const STAT_LABEL: Record<keyof Stats, string> = {
@@ -58,4 +66,7 @@ export const STAT_LABEL: Record<keyof Stats, string> = {
   xpGain: '경험치',
   coinGain: '코인',
   healMult: '회복량',
+  knock: '넉백',
+  iframe: '무적 시간',
+  drop: '드롭률',
 };

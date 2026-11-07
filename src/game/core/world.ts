@@ -79,7 +79,7 @@ export interface EnemyBullet {
 
 export interface Zone {
   alive: boolean;
-  kind: 'ink' | 'acid' | 'vortex' | 'alarm' | 'drop' | 'wave' | 'mop';
+  kind: 'ink' | 'acid' | 'vortex' | 'alarm' | 'drop' | 'wave' | 'mop' | 'tape' | 'tack' | 'beam' | 'bolt';
   x: number;
   y: number;
   r: number;
@@ -97,7 +97,7 @@ export interface Zone {
 
 export interface Pickup {
   alive: boolean;
-  kind: 'gem1' | 'gem2' | 'gem3' | 'coin' | 'food' | 'chest' | 'magnet';
+  kind: 'gem1' | 'gem2' | 'gem3' | 'coin' | 'food' | 'chest' | 'magnet' | 'feast' | 'coinbag' | 'bell' | 'clock' | 'energy';
   x: number;
   y: number;
   value: number;
@@ -155,6 +155,16 @@ export interface WeaponInst {
   burst: number; // remaining burst shots
   burstT: number;
   dealt: number;
+  /** Union: the sub weapons it runs (each gets its own hit slot). */
+  subs: WeaponInst[] | null;
+  /** The inventory weapon credited for damage (self, or the union for subs). */
+  owner: WeaponInst | null;
+  mul: number;
+  swing: number; // ruler: remaining swing time
+  swingIdx: number;
+  swingDir: number;
+  lastX: number; // tape: last drop position
+  lastY: number;
 }
 
 export interface PassiveInst {
@@ -214,7 +224,7 @@ export function makeEnemy(): Enemy {
   return {
     alive: false, uid: 0, def: null as unknown as EnemyDef, boss: null, elite: false, sprite: null as unknown as Sprite,
     x: 0, y: 0, vx: 0, vy: 0, r: 10, hp: 1, maxHp: 1, speed: 0, dmg: 0, xp: 0, armor: 0, kres: 0, flash: 0,
-    state: 0, timer: 0, t2: 0, dirx: 0, diry: 0, slow: 0, stun: 0, face: 1, hitT: new Float32Array(10).fill(-99),
+    state: 0, timer: 0, t2: 0, dirx: 0, diry: 0, slow: 0, stun: 0, face: 1, hitT: new Float32Array(16).fill(-99),
     scale: 1, phase: 0, spawnT: 0, pat: 0, act: 0, ax: 0, ay: 0,
   };
 }

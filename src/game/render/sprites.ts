@@ -1,5 +1,6 @@
 import { BOSS_MAPS, ENEMY_MAPS, ICON_MAPS, PAL, PICKUP_MAPS, characterFrames, type PixelMap } from './pixelmaps';
 import type { CharacterDef } from '../types';
+import { WEAPON_MAP } from '../data/weapons';
 
 export interface Sprite {
   img: HTMLCanvasElement;
@@ -58,7 +59,7 @@ const cache = new Map<string, Sprite>();
 export function enemySprite(id: string): Sprite {
   let s = cache.get('e:' + id);
   if (!s) {
-    const m = ENEMY_MAPS[id] ?? BOSS_MAPS[id] ?? ENEMY_MAPS.slime;
+    const m = ENEMY_MAPS[id] ?? BOSS_MAPS[id] ?? (id === 'chest_pickup' ? PICKUP_MAPS.chest : ENEMY_MAPS.slime);
     s = build(m);
     cache.set('e:' + id, s);
   }
@@ -93,6 +94,16 @@ export function characterSprites(def: CharacterDef): Sprite[] {
   });
 }
 
+/** Raw 1px-per-pixel canvas of an icon map (for drawing weapons in-world). */
+export function iconSprite(id: string): HTMLCanvasElement {
+  const key = 'i:' + id;
+  const hit = cache.get(key);
+  if (hit) return hit.img;
+  const sp = build(ICON_MAPS[id] ?? ICON_MAPS.chalk);
+  cache.set(key, sp);
+  return sp.img;
+}
+
 // ── Icons as data URLs for the DOM UI ──
 const iconUrlCache = new Map<string, string>();
 
@@ -101,6 +112,12 @@ export function iconUrl(id: string, evolved = false, scale = 4): string {
   const key = `${id}:${evolved}:${scale}`;
   const hit = iconUrlCache.get(key);
   if (hit) return hit;
+  const udef = WEAPON_MAP[id];
+  if (udef?.union) {
+    const url = unionIcon(udef.union[0], udef.union[1], scale);
+    iconUrlCache.set(key, url);
+    return url;
+  }
   const baseId = id.replace(/_evo$/, '');
   const map = ICON_MAPS[baseId] ?? ICON_MAPS.chalk;
   const pal = evolved ? { ...PAL, o: '#2A1E10' } : PAL;
@@ -119,6 +136,26 @@ export function iconUrl(id: string, evolved = false, scale = 4): string {
   const url = c.toDataURL();
   iconUrlCache.set(key, url);
   return url;
+}
+
+/** Union icon: the two parent icons overlapped with a teal halo. */
+function unionIcon(a: string, b: string, scale: number): string {
+  const ma = rasterize(ICON_MAPS[a].rows, PAL);
+  const mb = rasterize(ICON_MAPS[b].rows, PAL);
+  const ha = rasterize(ICON_MAPS[a].rows, PAL, '#68B6AA');
+  const hb = rasterize(ICON_MAPS[b].rows, PAL, '#68B6AA');
+  const size = 12;
+  const c = makeCanvas(size * scale, size * scale);
+  const g = c.getContext('2d')!;
+  g.imageSmoothingEnabled = false;
+  const draw = (img: HTMLCanvasElement, halo: HTMLCanvasElement, x: number, y: number) => {
+    const w = 8 * scale;
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.drawImage(halo, (x + dx * 0.5) * scale, (y + dy * 0.5) * scale, w, w);
+    g.drawImage(img, x * scale, y * scale, w, w);
+  };
+  draw(ma, ha, 0.5, 0.5);
+  draw(mb, hb, 3.5, 3.5);
+  return c.toDataURL();
 }
 
 export function spriteUrl(kind: 'enemy' | 'char', id: string, def?: CharacterDef, scale = 4): string {

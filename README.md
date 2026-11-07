@@ -19,12 +19,13 @@ npm run preview   # serve the production build
 |---|---|
 | Stages | 5: Classroom, Hallway, Gym, Science Lab, Rooftop. Each has its own layout, obstacles, enemy mix, and length (10–15 min). |
 | Characters | 8, each with a starting weapon, a passive, and a playstyle. 3 are available at the start; 5 unlock through play. |
-| Weapons | 12 base weapons, plus 12 evolutions (a max-level weapon combined with its paired passive). |
-| Passives | 15 |
+| Weapons | 20 base weapons, 20 evolutions (a max-level weapon plus its paired passive), and 6 unions (two max-level weapons merge into one, freeing a slot). |
+| Passives | 20 |
+| Field items | 9 kinds (heal, full heal, coins, magnet, freeze clock, screen-clear bell, energy drink…), dropped by enemies and by breakable trash cans and boxes. |
 | Enemies | 17 regular enemies across 14 behaviours (chase, dash, ranged, bomber, splitter, swarm, mimic, summoner, blink, hazard…), plus elite mid-bosses. |
 | Bosses | 5. Each has 3 phases, telegraphed attacks, and dodgeable ring waves with safe gaps. |
-| Systems | Schedule events (break, lunch, night study, exam, cleaning), clubs with character affinity, 10 synergies, chests, revives. |
-| Meta | Permanent upgrades, codex, 20 achievements, 3 daily missions per calendar day, per-stage best records, and a versioned save in localStorage. |
+| Systems | Schedule events (break, lunch, night study, exam, cleaning), clubs with character affinity, 12 synergies, chests, revives. |
+| Meta | Permanent upgrades, codex, 21 achievements, 3 daily missions per calendar day, per-stage best records, and a versioned save in localStorage. |
 
 ## Architecture
 

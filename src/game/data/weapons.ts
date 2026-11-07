@@ -97,6 +97,63 @@ export const WEAPONS: WeaponDef[] = [
     evolvesWith: 'notes', evolvesInto: 'edict_evo', tags: ['projectile'], knockback: 30,
   },
 
+  {
+    id: 'ruler', kind: 'ruler', name: '30cm 자', short: '정면을 크게 휘둘러 베어낸다.',
+    desc: '투명 플라스틱 자를 바라보는 방향으로 크게 휘두른다. 레벨이 오르면 좌우를 번갈아 휘두른다.',
+    base: L({ dmg: 15, cd: 1.25, count: 1, area: 1, duration: 0.2 }),
+    levels: [{ count: 1 }, { dmg: 6 }, { area: 0.15 }, { dmg: 6, cd: -0.15 }, { count: 1 }, { area: 0.15 }, { dmg: 10 }],
+    evolvesWith: 'posture', evolvesInto: 'ruler_evo', tags: ['melee'], knockback: 110,
+  },
+  {
+    id: 'eraser', kind: 'eraser', name: '지우개 부메랑', short: '던진 지우개가 되돌아온다.',
+    desc: '가장 가까운 적에게 지우개를 던진다. 멀리 날아갔다가 손으로 돌아오며 오가는 길의 적을 모두 지운다.',
+    base: L({ dmg: 13, cd: 1.6, count: 1, speed: 430, pierce: 999, duration: 0.55 }),
+    levels: [{ dmg: 5 }, { count: 1 }, { speed: 60 }, { dmg: 6 }, { count: 1 }, { area: 0.25 }, { dmg: 8, count: 1 }],
+    evolvesWith: 'reflex', evolvesInto: 'eraser_evo', tags: ['projectile'], knockback: 50,
+  },
+  {
+    id: 'slipper', kind: 'slipper', name: '실내화 투척', short: '포물선을 그리며 떨어지는 실내화.',
+    desc: '삼선 실내화를 하늘 높이 던진다. 실내화는 빙글빙글 돌며 떨어지고, 떨어지는 길의 적을 꿰뚫는다.',
+    base: L({ dmg: 22, cd: 1.6, count: 1, speed: 540, pierce: 4, duration: 2 }),
+    levels: [{ count: 1 }, { dmg: 8 }, { pierce: 2 }, { count: 1 }, { dmg: 10 }, { area: 0.25 }, { count: 1, dmg: 10 }],
+    evolvesWith: 'curiosity', evolvesInto: 'slipper_evo', tags: ['projectile'], knockback: 60,
+  },
+  {
+    id: 'recorder', kind: 'recorder', name: '리코더 연주', short: '주변에 끊임없이 퍼지는 음색.',
+    desc: '리코더 소리가 캐릭터 주변에 머물며 가까이 온 적에게 계속 피해를 주고 살짝 밀어낸다.',
+    base: L({ dmg: 8, cd: 0.6, count: 1, area: 1 }),
+    levels: [{ area: 0.15 }, { dmg: 2 }, { cd: -0.06 }, { area: 0.15 }, { dmg: 3 }, { area: 0.15 }, { dmg: 4, cd: -0.06 }],
+    evolvesWith: 'friendship', evolvesInto: 'recorder_evo', tags: ['area', 'dot'], knockback: 40,
+  },
+  {
+    id: 'highlighter', kind: 'highlighter', name: '형광펜', short: '화면을 가로지르는 형광 밑줄.',
+    desc: '가장 가까운 적을 향해 굵은 형광펜 밑줄을 긋는다. 밑줄 위의 적은 짧은 시간 동안 계속 피해를 입는다.',
+    base: L({ dmg: 6, cd: 1.9, count: 1, area: 1, duration: 0.4 }),
+    levels: [{ dmg: 2 }, { count: 1 }, { duration: 0.1 }, { dmg: 3 }, { count: 1 }, { area: 0.3 }, { dmg: 4, count: 1 }],
+    evolvesWith: 'diligence', evolvesInto: 'highlighter_evo', tags: ['area'], knockback: 10,
+  },
+  {
+    id: 'static', kind: 'static', name: '책받침 정전기', short: '무작위 적에게 정전기 번개.',
+    desc: '머리에 문지른 책받침에서 정전기가 튄다. 화면 안의 무작위 적에게 번개가 떨어진다.',
+    base: L({ dmg: 26, cd: 1.8, count: 2, area: 1 }),
+    levels: [{ count: 1 }, { dmg: 10 }, { cd: -0.25 }, { count: 1 }, { area: 0.3 }, { dmg: 12 }, { count: 2 }],
+    evolvesWith: 'nightstudy', evolvesInto: 'static_evo', tags: ['area', 'random'], knockback: 20,
+  },
+  {
+    id: 'tacks', kind: 'tacks', name: '압정 뿌리기', short: '바닥에 뿌린 압정이 적을 찌른다.',
+    desc: '주변 바닥에 압정을 흩뿌린다. 압정을 밟은 적은 피해를 입고, 압정은 몇 번 찌르면 사라진다.',
+    base: L({ dmg: 10, cd: 2.6, count: 4, pierce: 5, duration: 6, area: 1 }),
+    levels: [{ count: 2 }, { dmg: 4 }, { duration: 2 }, { count: 2 }, { pierce: 3 }, { dmg: 6 }, { count: 3 }],
+    evolvesWith: 'patience', evolvesInto: 'tacks_evo', tags: ['area', 'dot'], knockback: 0,
+  },
+  {
+    id: 'tape', kind: 'tape', name: '수정테이프', short: '지나간 길에 흰 테이프를 남긴다.',
+    desc: '움직이는 길을 따라 수정테이프가 깔린다. 테이프를 밟은 적은 느려지고 피해를 입는다.',
+    base: L({ dmg: 5, cd: 0.07, count: 1, area: 1, duration: 2.0 }),
+    levels: [{ dmg: 2 }, { duration: 0.6 }, { area: 0.2 }, { dmg: 3 }, { duration: 0.6 }, { area: 0.25 }, { dmg: 4 }],
+    evolvesWith: 'creativity', evolvesInto: 'tape_evo', tags: ['dot', 'area'], knockback: 0,
+  },
+
   // ───────────── Evolutions ─────────────
   {
     id: 'chalk_evo', kind: 'chalk', name: '초정밀 분필포', short: '관통하는 분필이 끝없이 쏟아진다.',
@@ -170,10 +227,91 @@ export const WEAPONS: WeaponDef[] = [
     base: L({ dmg: 20, cd: 0.6, count: 5, speed: 420, pierce: 2, duration: 3 }),
     levels: [], isEvolution: true, tags: ['projectile', 'area'], knockback: 40,
   },
+  {
+    id: 'ruler_evo', kind: 'ruler', name: '30cm 대검', short: '모든 방향을 베는 거대한 자.',
+    desc: '바른 자세에서 나오는 일격. 거대해진 자가 캐릭터를 중심으로 한 바퀴를 크게 베어낸다.',
+    base: L({ dmg: 42, cd: 0.95, count: 2, area: 1.6, duration: 0.28 }),
+    levels: [], isEvolution: true, tags: ['melee'], knockback: 180,
+  },
+  {
+    id: 'eraser_evo', kind: 'eraser', name: '무한 지우개', short: '끝없이 오가는 지우개 떼.',
+    desc: '반사 신경의 결정체. 커다란 지우개들이 쉬지 않고 날아갔다 돌아오며 지나간 자리를 깨끗이 지운다.',
+    base: L({ dmg: 34, cd: 0.8, count: 4, speed: 540, pierce: 999, area: 1.5, duration: 0.7 }),
+    levels: [], isEvolution: true, tags: ['projectile'], knockback: 80,
+  },
+  {
+    id: 'slipper_evo', kind: 'slipper', name: '황금 실내화', short: '하늘을 뒤덮는 황금 실내화.',
+    desc: '탐구 끝에 찾아낸 전설의 실내화. 한 번에 여러 켤레가 쏟아지고, 쓰러진 적은 종종 코인을 떨어뜨린다.',
+    base: L({ dmg: 56, cd: 1.0, count: 5, speed: 600, pierce: 12, area: 1.5, duration: 2 }),
+    levels: [], isEvolution: true, tags: ['projectile'], knockback: 90,
+  },
+  {
+    id: 'recorder_evo', kind: 'recorder', name: '합창단', short: '친구들과 함께 부르는 노래.',
+    desc: '우정이 화음이 된다. 넓은 음역이 적을 느리게 만들고, 연주할 때마다 체력을 조금 회복한다.',
+    base: L({ dmg: 18, cd: 0.4, count: 1, area: 2.0 }),
+    levels: [], isEvolution: true, tags: ['area', 'dot'], knockback: 60,
+  },
+  {
+    id: 'highlighter_evo', kind: 'highlighter', name: '형광 레이저', short: '회전하며 화면을 칠하는 밑줄.',
+    desc: '성실함이 빛이 된다. 네 갈래 형광 광선이 캐릭터를 중심으로 천천히 회전한다.',
+    base: L({ dmg: 10, cd: 2.4, count: 4, area: 1.5, duration: 2.2 }),
+    levels: [], isEvolution: true, tags: ['area'], knockback: 20,
+  },
+  {
+    id: 'static_evo', kind: 'static', name: '한밤의 낙뢰', short: '연쇄하는 번개 폭풍.',
+    desc: '야간 자율학습의 정적을 깨는 벼락. 번개가 맞은 적에게서 주변 적에게 두 번 더 튄다.',
+    base: L({ dmg: 60, cd: 1.0, count: 6, area: 1.6 }),
+    levels: [], isEvolution: true, tags: ['area', 'random'], knockback: 30,
+  },
+  {
+    id: 'tacks_evo', kind: 'tacks', name: '압정 지뢰밭', short: '밟으면 터지는 압정 지대.',
+    desc: '인내심으로 깔아 둔 함정. 압정이 넓게 깔리고, 마지막으로 찌를 때 작게 폭발한다.',
+    base: L({ dmg: 24, cd: 1.6, count: 12, pierce: 10, duration: 9, area: 1.3 }),
+    levels: [], isEvolution: true, tags: ['area', 'dot'], knockback: 40,
+  },
+  {
+    id: 'tape_evo', kind: 'tape', name: '무한 수정테이프', short: '모든 것을 덮어 버리는 흰 길.',
+    desc: '창의적으로 고쳐 쓴 길. 넓고 오래 남는 테이프가 적을 거의 멈춰 세운다.',
+    base: L({ dmg: 14, cd: 0.06, count: 1, area: 1.8, duration: 4 }),
+    levels: [], isEvolution: true, tags: ['dot', 'area'], knockback: 0,
+  },
+
+  // ───────────── Unions (two max-level base weapons → one) ─────────────
+  {
+    id: 'u_finalexam', kind: 'union', name: '기말고사', short: '교과서 유성우와 시험지 회오리가 동시에.',
+    desc: '교과서 폭격과 시험지 폭풍이 하나가 되었다. 하늘에서는 교과서가, 주위에서는 시험지가 몰아친다.',
+    base: L({}), levels: [], union: ['textbook', 'paper'], subs: ['textbook_evo', 'paper_evo'], tags: ['area', 'projectile'], knockback: 0,
+  },
+  {
+    id: 'u_festival', kind: 'union', name: '축제 무대', short: '전교생이 모인 학교 축제.',
+    desc: '스피커와 리코더가 하나가 되었다. 끝없는 음파와 합주가 무대 주변을 지배한다.',
+    base: L({}), levels: [], union: ['speaker', 'recorder'], subs: ['speaker_evo', 'recorder_evo'], tags: ['area', 'dot'], knockback: 0,
+  },
+  {
+    id: 'u_drafting', kind: 'union', name: '제도 마스터', short: '완벽한 원과 완벽한 직선.',
+    desc: '컴퍼스와 자가 하나가 되었다. 사라지지 않는 원을 그리며 거대한 자로 모든 방향을 벤다.',
+    base: L({}), levels: [], union: ['compass', 'ruler'], subs: ['compass_evo', 'ruler_evo'], tags: ['melee'], knockback: 0,
+  },
+  {
+    id: 'u_sportsday', kind: 'union', name: '체육대회', short: '공과 실내화가 쏟아지는 운동장.',
+    desc: '농구공과 실내화가 하나가 되었다. 튕기는 공과 떨어지는 실내화가 쉬지 않고 날아든다.',
+    base: L({}), levels: [], union: ['basketball', 'slipper'], subs: ['basketball_evo', 'slipper_evo'], tags: ['projectile'], knockback: 0,
+  },
+  {
+    id: 'u_board', kind: 'union', name: '칠판 당번', short: '쓰고, 지우고, 다시 쓴다.',
+    desc: '분필과 지우개가 하나가 되었다. 분필이 쏟아지고 지우개가 그 흔적을 따라 오간다.',
+    base: L({}), levels: [], union: ['chalk', 'eraser'], subs: ['chalk_evo', 'eraser_evo'], tags: ['projectile'], knockback: 0,
+  },
+  {
+    id: 'u_storm', kind: 'union', name: '자기 폭풍', short: '끌어당기고, 내리친다.',
+    desc: '자석 필통과 책받침 정전기가 하나가 되었다. 적을 한곳에 모은 뒤 번개를 퍼붓는다.',
+    base: L({}), levels: [], union: ['magnet', 'static'], subs: ['magnet_evo', 'static_evo'], tags: ['area'], knockback: 0,
+  },
 ];
 
 export const WEAPON_MAP: Record<string, WeaponDef> = Object.fromEntries(WEAPONS.map((w) => [w.id, w]));
-export const BASE_WEAPONS = WEAPONS.filter((w) => !w.isEvolution);
+export const BASE_WEAPONS = WEAPONS.filter((w) => !w.isEvolution && !w.union && !w.hidden);
+export const UNIONS = WEAPONS.filter((w) => !!w.union);
 export const MAX_WEAPON_SLOTS = 6;
 export const MAX_PASSIVE_SLOTS = 6;
 
@@ -209,6 +347,9 @@ export function describeDelta(def: WeaponDef, nextLevel: number): string {
   return (Object.keys(d) as (keyof WeaponLevel)[])
     .map((k) => {
       if (def.kind === 'compass' && k === 'speed') return '회전 속도 증가';
+      if (def.kind === 'recorder' && k === 'cd') return '연주 간격 단축';
+      if (def.kind === 'tacks' && k === 'pierce') return `압정 내구 +${d[k]}`;
+      if (def.kind === 'ruler' && k === 'count') return '휘두르기 +1';
       return DELTA_LABEL[k](d[k] as number);
     })
     .join(' · ');

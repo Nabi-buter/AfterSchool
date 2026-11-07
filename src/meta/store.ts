@@ -115,7 +115,7 @@ function checkGlobalAchievements(s: SaveData, list: AchievementDef[]) {
   if (s.stats.totalKills >= 1000) grantAchievement(s, 'kills1000', list);
   if (s.stats.totalKills >= 10000) grantAchievement(s, 'kills10000', list);
   if (s.codex.evolutions.length >= 1) grantAchievement(s, 'evolve1', list);
-  if (s.codex.evolutions.length >= 5) grantAchievement(s, 'evolve5', list);
+  if (s.codex.evolutions.filter((id) => !id.startsWith('u_')).length >= 5) grantAchievement(s, 'evolve5', list);
   if (s.unlockedChars.length >= CHARACTERS.length) grantAchievement(s, 'all_chars', list);
   if (s.stats.dailyDone >= 3) grantAchievement(s, 'daily3', list);
   if (s.coins >= 3000) grantAchievement(s, 'rich', list);
@@ -234,6 +234,7 @@ export const useMeta = create<MetaState>((set, get) => ({
     if (r.kills >= 800) grantAchievement(s, 'run_kills', achievements);
     if (r.level >= 30) grantAchievement(s, 'level30', achievements);
     if (r.synergies.length > 0) grantAchievement(s, 'synergy1', achievements);
+    if (r.evolutions.some((id) => id.startsWith('u_'))) grantAchievement(s, 'union1', achievements);
     if (r.maxWeapons >= 6) grantAchievement(s, 'fullbuild', achievements);
     if (r.bossesKilled.length > 0) grantAchievement(s, 'boss1', achievements);
     if (r.cleared) grantAchievement(s, `clear_${r.stage}`, achievements);
