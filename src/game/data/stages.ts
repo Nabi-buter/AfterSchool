@@ -1,0 +1,97 @@
+import type { StageDef } from '../types';
+
+const m = (min: number) => min * 60;
+
+export const STAGES: StageDef[] = [
+  {
+    id: 'classroom', index: 1, name: '일반 교실', en: 'CLASSROOM 2-3',
+    desc: '책상 사이로 교과서와 시험지가 몰려온다. 가장 익숙한 장소에서 시작하는 첫 수업.',
+    width: 2200, height: 1700, duration: m(10), midBossAt: m(4), bossAt: m(7.5),
+    midBoss: 'eraser', boss: 'proctor', hpScale: 1, dmgScale: 1, densityScale: 1, coinMult: 1,
+    palette: { floor: '#3A3328', floor2: '#352E24', line: '#2A241C', wall: '#1D2433', ambient: 'rgba(230,154,90,0.06)' },
+    waves: [
+      { from: 0, to: m(10), enemy: 'slime', rate: 0.9 },
+      { from: 20, to: m(10), enemy: 'ghost', rate: 0.6 },
+      { from: m(1.5), to: m(10), enemy: 'worm', rate: 0.8, group: 5 },
+      { from: m(2.5), to: m(10), enemy: 'wraith', rate: 0.2 },
+      { from: m(3), to: m(10), enemy: 'knight', rate: 0.22 },
+      { from: m(5), to: m(10), enemy: 'eraser', rate: 0.12 },
+      { from: m(6), to: m(10), enemy: 'locker', rate: 0.2 },
+    ],
+  },
+  {
+    id: 'hallway', index: 2, name: '복도', en: 'EAST HALLWAY',
+    desc: '끝없이 이어진 복도. 교실 문과 양 끝에서 빠른 적들이 쏟아진다.',
+    width: 5200, height: 820, duration: m(12), midBossAt: m(5), bossAt: m(9),
+    midBoss: 'monitor', boss: 'discipline', hpScale: 1.35, dmgScale: 1.15, densityScale: 1.15, coinMult: 1.25,
+    palette: { floor: '#5A5A55', floor2: '#53534E', line: '#45453F', wall: '#2B3446', ambient: 'rgba(104,182,170,0.05)' },
+    unlockAfter: 'classroom',
+    waves: [
+      { from: 0, to: m(12), enemy: 'ghost', rate: 1.0 },
+      { from: 15, to: m(12), enemy: 'worm', rate: 1.0, group: 6 },
+      { from: m(1), to: m(12), enemy: 'plane', rate: 0.25, group: 7 },
+      { from: m(2), to: m(12), enemy: 'locker', rate: 0.3 },
+      { from: m(3), to: m(12), enemy: 'bomb', rate: 0.35 },
+      { from: m(4), to: m(12), enemy: 'knight', rate: 0.3 },
+      { from: m(6), to: m(12), enemy: 'monitor', rate: 0.06 },
+      { from: m(7), to: m(12), enemy: 'wraith', rate: 0.3 },
+    ],
+  },
+  {
+    id: 'gym', index: 3, name: '체육관', en: 'GYMNASIUM',
+    desc: '넓게 트인 코트. 튕기는 공과 돌진하는 적, 그리고 거대한 웨이브.',
+    width: 3000, height: 2100, duration: m(12), midBossAt: m(5), bossAt: m(9),
+    midBoss: 'locker', boss: 'golem', hpScale: 1.8, dmgScale: 1.3, densityScale: 1.35, coinMult: 1.5,
+    palette: { floor: '#7A5A3A', floor2: '#734F33', line: '#E8DCC0', wall: '#262C3A', ambient: 'rgba(241,235,221,0.04)' },
+    unlockAfter: 'hallway',
+    waves: [
+      { from: 0, to: m(12), enemy: 'zombie', rate: 1.0 },
+      { from: 20, to: m(12), enemy: 'ball', rate: 0.5 },
+      { from: m(1.5), to: m(12), enemy: 'dodgeball', rate: 0.3 },
+      { from: m(2.5), to: m(12), enemy: 'slime', rate: 0.8, group: 4 },
+      { from: m(3.5), to: m(12), enemy: 'locker', rate: 0.35 },
+      { from: m(4), to: m(12), enemy: 'mimic', rate: 0.05 },
+      { from: m(6), to: m(12), enemy: 'eraser', rate: 0.2 },
+      { from: m(7), to: m(12), enemy: 'zombie', rate: 1.5, group: 10 },
+    ],
+  },
+  {
+    id: 'lab', index: 4, name: '과학실', en: 'SCIENCE LAB',
+    desc: '깨진 플라스크와 새어 나온 약품. 바닥에 남는 산성 웅덩이를 피해야 한다.',
+    width: 2600, height: 2000, duration: m(13), midBossAt: m(5), bossAt: m(9.5),
+    midBoss: 'specimen', boss: 'failed', hpScale: 2.3, dmgScale: 1.45, densityScale: 1.45, coinMult: 1.8, hazards: true,
+    palette: { floor: '#3D4A4A', floor2: '#384444', line: '#2C3838', wall: '#1E2A33', ambient: 'rgba(104,182,170,0.07)' },
+    unlockAfter: 'gym',
+    waves: [
+      { from: 0, to: m(13), enemy: 'specimen', rate: 0.6 },
+      { from: 0, to: m(13), enemy: 'ghost', rate: 0.9 },
+      { from: m(1), to: m(13), enemy: 'bomb', rate: 0.4 },
+      { from: m(2), to: m(13), enemy: 'wraith', rate: 0.4 },
+      { from: m(3), to: m(13), enemy: 'slime', rate: 0.9, group: 5 },
+      { from: m(4), to: m(13), enemy: 'knight', rate: 0.35 },
+      { from: m(6), to: m(13), enemy: 'nightwraith', rate: 0.15 },
+      { from: m(7), to: m(13), enemy: 'eraser', rate: 0.25 },
+    ],
+  },
+  {
+    id: 'rooftop', index: 5, name: '옥상', en: 'ROOFTOP',
+    desc: '노을이 지고 밤이 내린다. 마지막 종이 기다리는 곳.',
+    width: 2400, height: 2400, duration: m(15), midBossAt: m(6), bossAt: m(11),
+    midBoss: 'nightwraith', boss: 'lastbell', hpScale: 2.9, dmgScale: 1.6, densityScale: 1.6, coinMult: 2.4,
+    palette: { floor: '#4A4650', floor2: '#45414B', line: '#3A3640', wall: '#141B2A', ambient: 'rgba(230,154,90,0.08)' },
+    unlockAfter: 'lab',
+    waves: [
+      { from: 0, to: m(15), enemy: 'nightwraith', rate: 0.25 },
+      { from: 0, to: m(15), enemy: 'plane', rate: 0.3, group: 8 },
+      { from: 0, to: m(15), enemy: 'zombie', rate: 0.9 },
+      { from: m(1.5), to: m(15), enemy: 'bomb', rate: 0.45 },
+      { from: m(2.5), to: m(15), enemy: 'wraith', rate: 0.45 },
+      { from: m(3.5), to: m(15), enemy: 'ball', rate: 0.5 },
+      { from: m(5), to: m(15), enemy: 'monitor', rate: 0.08 },
+      { from: m(7), to: m(15), enemy: 'eraser', rate: 0.3 },
+      { from: m(8), to: m(15), enemy: 'locker', rate: 0.4 },
+    ],
+  },
+];
+
+export const STAGE_MAP: Record<string, StageDef> = Object.fromEntries(STAGES.map((s) => [s.id, s]));
