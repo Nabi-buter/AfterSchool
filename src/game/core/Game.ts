@@ -440,8 +440,8 @@ export class Game {
     if (st.hazards) {
       this.hazardTimer -= dt;
       if (this.hazardTimer <= 0) {
-        this.hazardTimer = Math.max(4, 11 - t / 90);
-        const n = 2 + Math.floor(t / 180);
+        this.hazardTimer = Math.max(5, 13 - t / 90);
+        const n = 1 + Math.floor(t / 150);
         for (let i = 0; i < n; i++) {
           const a = Math.random() * Math.PI * 2;
           const d = 80 + Math.random() * 260;
